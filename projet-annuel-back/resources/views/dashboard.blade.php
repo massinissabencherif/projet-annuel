@@ -52,6 +52,29 @@
         .p-4.space-y-3.min-h-\[200px\]:hover {
             background-color: #f8fafc;
         }
+        
+        /* Styles pour notre drag & drop personnalisé */
+        .task-card {
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+        
+        .task-card:active {
+            cursor: grabbing;
+        }
+        
+        .dragging-ghost {
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .drop-zone-active {
+            background-color: #eff6ff !important;
+            border: 2px dashed #3b82f6 !important;
+            border-radius: 8px;
+        }
+        
+
     </style>
 
     <!-- Kanban Interface -->

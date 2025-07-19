@@ -1,7 +1,7 @@
 // Import de Sortable.js pour le drag & drop
-import Sortable from 'sortablejs';
+// import Sortable from 'sortablejs'; // Désactivé pour notre système personnalisé
 
-// Kanban JavaScript - Version Blade
+// Kanban JavaScript - Version Blade avec Drag & Drop personnalisé
 console.log('=== KANBAN.JS CHARGÉ ===');
 
 // Variables globales
@@ -9,6 +9,14 @@ let projects = [];
 let columns = [];
 let tasks = [];
 let currentProject = null;
+
+// Variables pour le drag & drop personnalisé
+let isDragging = false;
+let draggedElement = null;
+let draggedTaskId = null;
+let draggedColumnId = null;
+let ghostElement = null;
+let dropZones = [];
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', function() {
@@ -54,6 +62,10 @@ function setupEventListeners() {
     if (taskForm) {
         taskForm.addEventListener('submit', createTask);
     }
+    
+    // Événements globaux pour le drag & drop
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
 }
 
 async function loadProjects() {
@@ -273,7 +285,7 @@ function showKanbanBoard() {
     
     // Initialiser le drag & drop après l'affichage
     setTimeout(() => {
-        initializeDragAndDrop();
+        initializeCustomDragAndDrop();
     }, 100);
 }
 
@@ -560,96 +572,202 @@ window.createTask = createTask;
 window.openCreateProjectModal = openCreateProjectModal;
 window.openCreateTaskModal = openCreateTaskModal;
 
-// Fonction pour initialiser le drag & drop
-function initializeDragAndDrop() {
-    console.log('=== INITIALISATION DRAG & DROP ===');
+// Fonction pour initialiser le drag & drop personnalisé
+function initializeCustomDragAndDrop() {
+    console.log('=== INITIALISATION DRAG & DROP PERSONNALISÉ ===');
     
-    // Détruire les instances existantes pour éviter les conflits
-    const existingSortables = document.querySelectorAll('.sortable-ghost');
-    existingSortables.forEach(el => {
-        if (el.sortable) {
-            el.sortable.destroy();
-        }
+    // Nettoyer les événements précédents
+    cleanupDragAndDrop();
+    
+    // Initialiser les zones de drop
+    initializeDropZones();
+    
+    // Initialiser les éléments draggables
+    initializeDraggableElements();
+    
+    console.log('Drag & drop personnalisé initialisé');
+}
+
+// Fonction pour nettoyer le drag & drop
+function cleanupDragAndDrop() {
+    // Supprimer les événements précédents
+    const taskCards = document.querySelectorAll('.task-card');
+    taskCards.forEach(card => {
+        card.removeEventListener('mousedown', startDrag);
     });
     
-    // Initialiser Sortable pour chaque colonne
+    // Supprimer l'élément fantôme s'il existe
+    if (ghostElement) {
+        ghostElement.remove();
+        ghostElement = null;
+    }
+    
+    // Réinitialiser les variables
+    isDragging = false;
+    draggedElement = null;
+    draggedTaskId = null;
+    draggedColumnId = null;
+    dropZones = [];
+}
+
+// Fonction pour initialiser les zones de drop
+function initializeDropZones() {
     const columns = document.querySelectorAll('.bg-white.rounded-lg.shadow-sm.border');
-    console.log('Colonnes trouvées:', columns.length);
+    dropZones = [];
     
-    columns.forEach((column, index) => {
-        const taskContainer = column.querySelector('.p-4.space-y-3');
-        console.log(`Colonne ${index}:`, taskContainer ? 'Container trouvé' : 'Container NON TROUVÉ');
-        
-        if (taskContainer) {
-            const sortable = new Sortable(taskContainer, {
-                group: 'tasks', // Permet le déplacement entre colonnes
-                animation: 150,
-                ghostClass: 'sortable-ghost', // Classe pour l'élément fantôme
-                chosenClass: 'sortable-chosen', // Classe pour l'élément sélectionné
-                dragClass: 'sortable-drag', // Classe pendant le drag
-                filter: '.sortable-no-drop', // Exclure les éléments non draggables
-                
-                // Améliorer la détection de zone de drop
-                fallbackOnBody: true,
-                swapThreshold: 0.5,
-                invertSwap: false,
-                direction: 'vertical',
-                
-                // Zone de drop plus permissive
-                emptyInsertThreshold: 10,
-                
-                // Désactiver le scroll automatique
-                scroll: false,
-                
-                // Améliorer la détection de drop
-                forceFallback: false,
-                fallbackClass: 'sortable-fallback',
-                
-                onStart: function(evt) {
-                    console.log('=== DÉBUT DRAG ===');
-                    console.log('Élément:', evt.item);
-                    console.log('Task ID:', evt.item.dataset.taskId);
-                    console.log('Column ID:', evt.item.dataset.columnId);
-                    evt.item.style.opacity = '0.8';
-                },
-                
-                onEnd: function(evt) {
-                    console.log('=== FIN DRAG ===');
-                    console.log('Élément:', evt.item);
-                    console.log('From container:', evt.from);
-                    console.log('To container:', evt.to);
-                    console.log('Old index:', evt.oldIndex);
-                    console.log('New index:', evt.newIndex);
-                    
-                    evt.item.style.opacity = '1';
-                    
-                    const taskId = evt.item.dataset.taskId;
-                    
-                    // Trouver les colonnes parentes
-                    const fromColumn = evt.from.closest('.bg-white.rounded-lg.shadow-sm.border');
-                    const toColumn = evt.to.closest('.bg-white.rounded-lg.shadow-sm.border');
-                    
-                    console.log('From column:', fromColumn);
-                    console.log('To column:', toColumn);
-                    
-                    if (fromColumn !== toColumn) {
-                        // La tâche a été déplacée vers une nouvelle colonne
-                        const newColumnId = toColumn.querySelector('[data-column-id]').getAttribute('data-column-id');
-                        console.log('Task ID à déplacer:', taskId);
-                        console.log('Nouvelle colonne ID:', newColumnId);
-                        console.log('Déplacement détecté - appel API...');
-                        moveTask(taskId, newColumnId);
-                    } else {
-                        console.log('Aucun déplacement - même colonne');
-                    }
-                }
-            });
-            
-            console.log(`Sortable initialisé pour colonne ${index}`);
+    columns.forEach(column => {
+        const columnId = column.querySelector('[data-column-id]')?.getAttribute('data-column-id');
+        if (columnId) {
+            const taskContainer = column.querySelector('.p-4.space-y-3');
+            if (taskContainer) {
+                dropZones.push({
+                    element: taskContainer,
+                    columnId: columnId,
+                    rect: taskContainer.getBoundingClientRect()
+                });
+            }
         }
     });
     
-    console.log('Drag & drop initialisé pour', columns.length, 'colonnes');
+    console.log('Zones de drop initialisées:', dropZones.length);
+}
+
+// Fonction pour initialiser les éléments draggables
+function initializeDraggableElements() {
+    const taskCards = document.querySelectorAll('.task-card');
+    
+    taskCards.forEach(card => {
+        card.addEventListener('mousedown', startDrag);
+        card.style.cursor = 'grab';
+    });
+    
+    console.log('Éléments draggables initialisés:', taskCards.length);
+}
+
+// Fonction pour démarrer le drag
+function startDrag(event) {
+    console.log('=== DÉBUT DRAG PERSONNALISÉ ===');
+    
+    event.preventDefault();
+    
+    const card = event.currentTarget;
+    const taskId = card.getAttribute('data-task-id');
+    const columnId = card.getAttribute('data-column-id');
+    
+    console.log('Tâche à déplacer:', taskId, 'Colonne actuelle:', columnId);
+    
+    // Sauvegarder les informations de drag
+    isDragging = true;
+    draggedElement = card;
+    draggedTaskId = taskId;
+    draggedColumnId = columnId;
+    
+    // Créer l'élément fantôme
+    createGhostElement(card);
+    
+    // Masquer l'élément original
+    card.style.opacity = '0.3';
+    
+    // Empêcher la sélection de texte
+    document.body.style.userSelect = 'none';
+}
+
+// Fonction pour créer l'élément fantôme
+function createGhostElement(originalElement) {
+    ghostElement = originalElement.cloneNode(true);
+    ghostElement.style.position = 'fixed';
+    ghostElement.style.zIndex = '1000';
+    ghostElement.style.pointerEvents = 'none';
+    ghostElement.style.opacity = '0.8';
+    ghostElement.style.transform = 'rotate(5deg)';
+    ghostElement.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
+    ghostElement.classList.add('dragging-ghost');
+    
+    document.body.appendChild(ghostElement);
+}
+
+// Fonction pour gérer le mouvement de la souris
+function handleMouseMove(event) {
+    if (!isDragging || !ghostElement) return;
+    
+    // Déplacer l'élément fantôme
+    ghostElement.style.left = (event.clientX - ghostElement.offsetWidth / 2) + 'px';
+    ghostElement.style.top = (event.clientY - ghostElement.offsetHeight / 2) + 'px';
+    
+    // Mettre à jour les zones de drop
+    updateDropZones(event.clientX, event.clientY);
+}
+
+// Fonction pour mettre à jour les zones de drop
+function updateDropZones(mouseX, mouseY) {
+    dropZones.forEach(zone => {
+        const rect = zone.element.getBoundingClientRect();
+        const isOver = mouseX >= rect.left && mouseX <= rect.right && 
+                      mouseY >= rect.top && mouseY <= rect.bottom;
+        
+        if (isOver) {
+            zone.element.classList.add('drop-zone-active');
+        } else {
+            zone.element.classList.remove('drop-zone-active');
+        }
+    });
+}
+
+// Fonction pour gérer la fin du drag
+function handleMouseUp(event) {
+    if (!isDragging) return;
+    
+    console.log('=== FIN DRAG PERSONNALISÉ ===');
+    
+    // Trouver la zone de drop
+    const dropZone = findDropZone(event.clientX, event.clientY);
+    
+    if (dropZone && dropZone.columnId !== draggedColumnId) {
+        console.log('Drop détecté vers la colonne:', dropZone.columnId);
+        moveTask(draggedTaskId, dropZone.columnId);
+    } else {
+        console.log('Aucun drop valide détecté');
+    }
+    
+    // Nettoyer le drag
+    cleanupDrag();
+}
+
+// Fonction pour trouver la zone de drop
+function findDropZone(mouseX, mouseY) {
+    return dropZones.find(zone => {
+        const rect = zone.element.getBoundingClientRect();
+        return mouseX >= rect.left && mouseX <= rect.right && 
+               mouseY >= rect.top && mouseY <= rect.bottom;
+    });
+}
+
+// Fonction pour nettoyer le drag
+function cleanupDrag() {
+    // Supprimer l'élément fantôme
+    if (ghostElement) {
+        ghostElement.remove();
+        ghostElement = null;
+    }
+    
+    // Restaurer l'élément original
+    if (draggedElement) {
+        draggedElement.style.opacity = '1';
+        draggedElement = null;
+    }
+    
+    // Nettoyer les zones de drop
+    dropZones.forEach(zone => {
+        zone.element.classList.remove('drop-zone-active');
+    });
+    
+    // Réinitialiser les variables
+    isDragging = false;
+    draggedTaskId = null;
+    draggedColumnId = null;
+    
+    // Restaurer la sélection de texte
+    document.body.style.userSelect = '';
 }
 
 // Fonction pour mettre à jour l'affichage sans réinitialiser Sortable

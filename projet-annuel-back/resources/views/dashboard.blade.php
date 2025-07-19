@@ -5,9 +5,71 @@
         </h2>
     </x-slot>
 
-    <div id="app">
-        <!-- L'application Vue.js sera montée ici -->
+    <style>
+        .sortable-ghost {
+            opacity: 0.5;
+            background-color: #dbeafe !important;
+            border-color: #3b82f6 !important;
+        }
+        
+        .sortable-chosen {
+            background-color: #fef3c7 !important;
+            border-color: #f59e0b !important;
+            transform: rotate(2deg);
+        }
+        
+        .sortable-drag {
+            background-color: #dcfce7 !important;
+            border-color: #22c55e !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .task-card {
+            user-select: none;
+        }
+        
+        .sortable-no-drop {
+            user-select: none;
+            pointer-events: none;
+        }
+        
+        .sortable-drop-zone {
+            transition: all 0.2s ease;
+        }
+        
+        .sortable-drop-zone:hover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        
+        /* Améliorer la zone de drop pour les colonnes avec tâches */
+        .p-4.space-y-3.min-h-\[200px\] {
+            min-height: 200px;
+            padding: 1rem;
+            transition: background-color 0.2s ease;
+        }
+        
+        .p-4.space-y-3.min-h-\[200px\]:hover {
+            background-color: #f8fafc;
+        }
+    </style>
+
+    <!-- Kanban Interface -->
+    <div class="min-h-screen bg-gray-50">
+        <!-- Header -->
+        @include('components.kanban-header')
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div id="kanban-main">
+                @include('components.kanban-board')
+            </div>
+        </main>
     </div>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <!-- Modals -->
+    @include('components.modal-create-project')
+    @include('components.modal-create-task')
+
+    @vite(['resources/css/app.css', 'resources/js/kanban.js'])
 </x-app-layout>

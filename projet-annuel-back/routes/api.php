@@ -34,6 +34,9 @@ Route::get('projects/{project}/tasks', [ProjectController::class, 'tasks']);
 // Routes des tâches
 Route::apiResource('tasks', TaskController::class);
 
+// Route pour déplacer une tâche vers une autre colonne
+Route::patch('tasks/{task}/move', [TaskController::class, 'move']);
+
 // Routes des membres
 Route::post('projects/{project}/members', [MemberController::class, 'store']);
 Route::delete('projects/{project}/members/{member}', [MemberController::class, 'destroy']); 

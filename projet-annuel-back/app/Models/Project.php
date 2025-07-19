@@ -9,7 +9,25 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'creator_id'];
+    protected $fillable = ['name', 'description', 'creator_id'];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($project) {
+            // Créer les colonnes par défaut pour le projet
+            $defaultColumns = [
+                ['name' => 'À faire', 'is_terminal' => false],
+                ['name' => 'En cours', 'is_terminal' => false],
+                ['name' => 'Terminé', 'is_terminal' => true],
+            ];
+
+            foreach ($defaultColumns as $columnData) {
+                $project->columns()->create($columnData);
+            }
+        });
+    }
 
     public function creator()
     {

@@ -1,49 +1,38 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\DashboardController;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\TaskController;
-use App\Http\Controllers\MemberController;
-use App\Http\Controllers\ColumnController;
-use App\Http\Middleware\ProjectAccess;
-use App\Http\Middleware\ProjectOwner;
+use Inertia\Inertia;
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register web routes for your application. These
+| routes are loaded by the RouteServiceProvider within a group which
+| contains the "web" middleware group. Now create something great!
+|
+*/
 
 Route::get('/', function () {
-    return view('welcome');
+    return Inertia::render('Welcome', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+        'laravelVersion' => Application::VERSION,
+        'phpVersion' => PHP_VERSION,
+    ]);
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard/project/{project}', [DashboardController::class, 'showProject'])->middleware(['auth', 'verified'])->name('dashboard.project');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-
-Route::middleware(['auth'])->group(function () {
-    Route::resource('projects', ProjectController::class)->parameters([
-        'projects' => 'project',
-    ]);
-    Route::resource('tasks', TaskController::class)->parameters([
-        'tasks' => 'task',
-    ]);
-    Route::resource('columns', ColumnController::class)->parameters([
-        'columns' => 'column',
-    ]);
-    // Routes membres de projet (seul le créateur)
-    Route::middleware([ProjectOwner::class])->group(function () {
-        Route::get('projects/{project}/members', [MemberController::class, 'index']);
-        Route::post('projects/{project}/members', [MemberController::class, 'store']);
-        Route::delete('projects/{project}/members/{user}', [MemberController::class, 'destroy']);
-    });
-    // Routes personnalisées (seul le créateur)
-    Route::middleware([ProjectOwner::class])->group(function () {
-        Route::patch('tasks/{task}/move', [TaskController::class, 'move']);
-        Route::post('tasks/{task}/assign', [TaskController::class, 'assign']);
-    });
 });
 
 require __DIR__.'/auth.php';

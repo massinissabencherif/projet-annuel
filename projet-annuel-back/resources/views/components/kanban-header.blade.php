@@ -6,11 +6,28 @@
                 <h1 class="text-2xl font-bold text-gray-900">Kanban Board</h1>
             </div>
             <div class="flex items-center space-x-4">
+                <!-- Sélecteur de vue -->
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-500">Vue :</span>
+                    <select id="view-selector" class="text-sm border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="kanban">Kanban</option>
+                        <option value="list">Liste</option>
+                        <option value="calendar">Calendrier</option>
+                    </select>
+                </div>
                 <button 
                     id="new-project-btn"
+                    onclick="openCreateProjectModal()"
                     class="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                     Nouveau Projet
+                </button>
+                <button 
+                    id="manage-members-btn"
+                    onclick="openMembersModal()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                    Gérer les membres
                 </button>
                 <div class="relative">
                     <select 

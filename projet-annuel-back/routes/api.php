@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\ProjectMemberController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +38,7 @@ Route::apiResource('tasks', TaskController::class);
 // Route pour déplacer une tâche vers une autre colonne
 Route::patch('tasks/{task}/move', [TaskController::class, 'move']);
 
-// Routes des membres
-Route::post('projects/{project}/members', [MemberController::class, 'store']);
-Route::delete('projects/{project}/members/{member}', [MemberController::class, 'destroy']); 
+// Routes pour la gestion des membres de projet
+Route::get('/projects/{project}/members', [ProjectMemberController::class, 'index']);
+Route::post('/projects/{project}/invite', [ProjectMemberController::class, 'invite']);
+Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'remove']); 

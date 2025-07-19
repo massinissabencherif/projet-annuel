@@ -39,25 +39,27 @@ class ProjectController extends Controller
     {
         $validated = $request->validated();
         
-        // Temporairement : utiliser un utilisateur par défaut si pas d'authentification
-        $creatorId = Auth::id();
-        if (!$creatorId) {
-            // Créer ou récupérer un utilisateur de test
-            $user = \App\Models\User::firstOrCreate(
-                ['email' => 'test@example.com'],
-                [
-                    'name' => 'Utilisateur Test',
-                    'password' => bcrypt('password')
-                ]
-            );
-            $creatorId = $user->id;
+        // Récupérer l'utilisateur par son email
+        $user = \App\Models\User::where('email', $validated['creator_email'])->first();
+        if (!$user) {
+            return response()->json([
+                'message' => 'Utilisateur non trouvé avec cet email'
+            ], 404);
         }
         
         $project = Project::create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'creator_id' => $creatorId,
+            'creator_id' => $user->id,
         ]);
+
+        // Ajouter le créateur comme membre avec le statut is_creator = true
+        $project->users()->attach($user->id, [
+            'is_creator' => true,
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+
         return response()->json($project, Response::HTTP_CREATED);
     }
 

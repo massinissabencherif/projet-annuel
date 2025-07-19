@@ -87,6 +87,11 @@
             <div id="kanban-main">
                 @include('components.kanban-board')
             </div>
+            
+            <!-- Vue Liste -->
+            @include('components.task-list')
+            @include('components.calendar-view')
+            @include('components.members-modal')
         </main>
     </div>
 

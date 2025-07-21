@@ -68,11 +68,10 @@ class TaskController extends Controller
         // Vérifier que l'utilisateur a accès à la colonne
         $column = Column::findOrFail($validated['column_id']);
         $project = $column->project;
-        
-        // Temporairement : permettre l'accès si pas d'authentification
-        if ($userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
-            abort(403, 'Accès non autorisé');
-        }
+        // DEV : on autorise la création de tâche à tout le monde
+        // if ($userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
+        //     abort(403, 'Accès non autorisé');
+        // }
         
         \Log::info('Création de la tâche...');
         $task = Task::create($validated);
@@ -163,9 +162,10 @@ class TaskController extends Controller
         
         // Vérifier que l'utilisateur a accès à la tâche
         $project = $task->project;
-        if ($userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
-            abort(403, 'Accès non autorisé');
-        }
+        // DEV : on autorise le déplacement de tâche à tout le monde
+        // if ($userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
+        //     abort(403, 'Accès non autorisé');
+        // }
         
         // Vérifier que la nouvelle colonne appartient au même projet
         $newColumn = Column::findOrFail($validated['column_id']);

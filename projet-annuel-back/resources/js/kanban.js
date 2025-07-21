@@ -169,11 +169,11 @@ function updateProjectSelect() {
     console.log('Mise à jour du sélecteur de projets avec', projects.length, 'projets');
     
     // Garder l'option par défaut
-    const defaultOption = projectSelect.querySelector('option[value=""]');
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Sélectionner un projet';
     projectSelect.innerHTML = '';
-    if (defaultOption) {
-        projectSelect.appendChild(defaultOption);
-    }
+    projectSelect.appendChild(defaultOption);
     
     // Ajouter l'option "Tous les projets"
     const allProjectsOption = document.createElement('option');
@@ -191,12 +191,37 @@ function updateProjectSelect() {
         console.log('Option ajoutée:', project.name, '(ID:', project.id, ')');
     });
     
-    console.log('Sélecteur mis à jour avec', projects.length + 1, 'projets (incluant "Tous les projets")');
+    console.log('Sélecteur mis à jour avec', projects.length + 2, 'projets (incluant "Tous les projets" et défaut)');
+
+    // === RESTAURATION DE LA SÉLECTION APRÈS PEUPLEMENT ===
+    const savedProject = localStorage.getItem('kanban_selected_project');
+    if (savedProject && projectSelect) {
+        projectSelect.value = savedProject;
+        // Déclenche le changement de projet
+        const event = new Event('change');
+        projectSelect.dispatchEvent(event);
+    }
+    // === FIN RESTAURATION ===
 }
 
 async function onProjectChange(event) {
     const projectId = event.target.value;
     console.log('Changement de projet sélectionné:', projectId);
+
+    // Forcer la vue Kanban à chaque changement de projet
+    const viewSelector = document.getElementById('view-selector');
+    if (viewSelector) {
+        viewSelector.value = 'kanban';
+        localStorage.setItem('kanban_selected_view', 'kanban');
+        currentView = 'kanban';
+    }
+    
+    // === AJOUT POUR LA PERSISTENCE DE LA VUE ===
+    const savedView = localStorage.getItem('kanban_selected_view');
+    if (savedView) {
+        currentView = savedView;
+    }
+    // === FIN AJOUT ===
     
     if (projectId === 'all') {
         // Option "Tous les projets" sélectionnée
@@ -215,27 +240,17 @@ async function onProjectChange(event) {
     } else if (projectId) {
         // Projet spécifique sélectionné
         console.log('Chargement des données du projet:', projectId);
-        
-        // Vérifier la vue actuelle
+        // Toujours forcer la vue Kanban et recharger le contenu du projet sélectionné
         const viewSelector = document.getElementById('view-selector');
-        const currentView = viewSelector ? viewSelector.value : 'kanban';
-        
-        if (currentView === 'list') {
-            // Si on est en vue liste, recharger les données de la vue liste
-            currentProject = projectId;
-            await loadTasksForListView();
-        } else if (currentView === 'calendar') {
-            // Si on est en vue calendrier, recharger les données du calendrier
-            currentProject = projectId;
-            await loadCalendarTasks();
-            renderCalendar();
-        } else {
-            // Sinon, basculer vers la vue Kanban
-            if (viewSelector) {
-                viewSelector.value = 'kanban';
-            }
-            await loadProjectData(projectId);
+        if (viewSelector) {
+            viewSelector.value = 'kanban';
+            localStorage.setItem('kanban_selected_view', 'kanban');
+            currentView = 'kanban';
+            // Déclencher le changement de vue pour forcer le rechargement du DOM
+            const event = new Event('change');
+            viewSelector.dispatchEvent(event);
         }
+        await loadProjectData(projectId);
     } else {
         showNoProjectSelected();
     }
@@ -1025,18 +1040,43 @@ function setupListViewEvents() {
     // Recherche
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
-        searchInput.addEventListener('input', debounce(onSearchChange, 300));
+        // Restauration
+        const savedSearch = localStorage.getItem('kanban_filter_search');
+        if (savedSearch !== null) {
+            searchInput.value = savedSearch;
+            currentFilters.search = savedSearch;
+        }
+        searchInput.addEventListener('input', debounce(function(event) {
+            localStorage.setItem('kanban_filter_search', event.target.value);
+            onSearchChange(event);
+        }, 300));
     }
-    
     // Filtres
     const columnFilter = document.getElementById('column-filter');
     if (columnFilter) {
-        columnFilter.addEventListener('change', onFilterChange);
+        // Restauration
+        const savedColumn = localStorage.getItem('kanban_filter_column');
+        if (savedColumn !== null) {
+            columnFilter.value = savedColumn;
+            currentFilters.column = savedColumn;
+        }
+        columnFilter.addEventListener('change', function(event) {
+            localStorage.setItem('kanban_filter_column', event.target.value);
+            onFilterChange(event);
+        });
     }
-    
     const priorityFilter = document.getElementById('priority-filter');
     if (priorityFilter) {
-        priorityFilter.addEventListener('change', onFilterChange);
+        // Restauration
+        const savedPriority = localStorage.getItem('kanban_filter_priority');
+        if (savedPriority !== null) {
+            priorityFilter.value = savedPriority;
+            currentFilters.priority = savedPriority;
+        }
+        priorityFilter.addEventListener('change', function(event) {
+            localStorage.setItem('kanban_filter_priority', event.target.value);
+            onFilterChange(event);
+        });
     }
     
     // Tri
@@ -1511,16 +1551,36 @@ function setupCalendarEvents() {
     document.getElementById('prev-month')?.addEventListener('click', () => navigateCalendar(-1));
     document.getElementById('next-month')?.addEventListener('click', () => navigateCalendar(1));
     document.getElementById('today-btn')?.addEventListener('click', goToToday);
-    
     // Changement de vue
     document.getElementById('month-view-btn')?.addEventListener('click', () => changeCalendarView('month'));
     document.getElementById('week-view-btn')?.addEventListener('click', () => changeCalendarView('week'));
     document.getElementById('three-days-view-btn')?.addEventListener('click', () => changeCalendarView('three-days'));
     document.getElementById('day-view-btn')?.addEventListener('click', () => changeCalendarView('day'));
-    
     // Filtres
-    document.getElementById('calendar-project-filter')?.addEventListener('change', onCalendarFilterChange);
-    document.getElementById('calendar-priority-filter')?.addEventListener('change', onCalendarFilterChange);
+    const calendarProjectFilter = document.getElementById('calendar-project-filter');
+    if (calendarProjectFilter) {
+        // Restauration
+        const savedCalProject = localStorage.getItem('kanban_calendar_project');
+        if (savedCalProject !== null) {
+            calendarProjectFilter.value = savedCalProject;
+        }
+        calendarProjectFilter.addEventListener('change', function(event) {
+            localStorage.setItem('kanban_calendar_project', event.target.value);
+            onCalendarFilterChange(event);
+        });
+    }
+    const calendarPriorityFilter = document.getElementById('calendar-priority-filter');
+    if (calendarPriorityFilter) {
+        // Restauration
+        const savedCalPriority = localStorage.getItem('kanban_calendar_priority');
+        if (savedCalPriority !== null) {
+            calendarPriorityFilter.value = savedCalPriority;
+        }
+        calendarPriorityFilter.addEventListener('change', function(event) {
+            localStorage.setItem('kanban_calendar_priority', event.target.value);
+            onCalendarFilterChange(event);
+        });
+    }
 }
 
 // Fonction pour naviguer dans le calendrier
@@ -2183,4 +2243,19 @@ function resetMembersForm() {
     if (messageDiv) {
         messageDiv.classList.add('hidden');
     }
+}
+
+// Ajout de la sauvegarde à chaque changement de projet
+const projectSelectInit = document.getElementById('project-select');
+if (projectSelectInit) {
+    projectSelectInit.addEventListener('change', function(event) {
+        localStorage.setItem('kanban_selected_project', event.target.value);
+    });
+}
+// Ajout de la sauvegarde à chaque changement de vue
+const viewSelectorInit = document.getElementById('view-selector');
+if (viewSelectorInit) {
+    viewSelectorInit.addEventListener('change', function(event) {
+        localStorage.setItem('kanban_selected_view', event.target.value);
+    });
 }

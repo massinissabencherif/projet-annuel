@@ -54,18 +54,7 @@
                     <span id="current-date-range" class="text-lg font-medium text-gray-900">Janvier 2025</span>
                 </div>
                 
-                <!-- Calendar Filters -->
-                <div class="flex items-center space-x-4">
-                    <select id="calendar-project-filter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Tous les projets</option>
-                    </select>
-                    <select id="calendar-priority-filter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Toutes les priorités</option>
-                        <option value="high">Haute</option>
-                        <option value="medium">Moyenne</option>
-                        <option value="low">Basse</option>
-                    </select>
-                </div>
+                <!-- Suppression des filtres ici -->
             </div>
         </div>
 

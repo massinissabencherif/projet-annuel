@@ -1388,8 +1388,6 @@ function createTaskRow(task) {
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${createdDate}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 ${actionBtn}
-                <button onclick="editTaskFromList(${task.id})" class="text-blue-600 hover:text-blue-900 mr-3">Modifier</button>
-                <button onclick="deleteTaskFromList(${task.id})" class="text-red-600 hover:text-red-900">Supprimer</button>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">${renderLabels(task.labels)}</td>
         </tr>
@@ -1835,8 +1833,11 @@ function renderWeekView() {
     const weekTimeSlots = document.getElementById('week-time-slots');
     if (!weekDayHeaders || !weekTimeSlots) return;
     
+    // Calcul du début de semaine (lundi)
     const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    const dayOfWeek = startOfWeek.getDay();
+    const diffToMonday = (dayOfWeek + 6) % 7; // 0 (dimanche) => 6, 1 (lundi) => 0, etc.
+    startOfWeek.setDate(currentDate.getDate() - diffToMonday);
     
     // En-têtes des jours
     let headersHtml = '';
@@ -1858,24 +1859,22 @@ function renderWeekView() {
     let timeSlotsHtml = '';
     for (let hour = 8; hour <= 18; hour++) {
         timeSlotsHtml += `<div class="bg-gray-50 p-2 text-xs text-gray-500 text-center">${hour}h</div>`;
-        
         for (let day = 0; day < 7; day++) {
             const date = new Date(startOfWeek);
             date.setDate(startOfWeek.getDate() + day);
             date.setHours(hour);
-            
-            let hourTasks = [];
-            if (hour === 18) {
-                // À 18h, afficher toutes les tâches de la journée (par date d'échéance)
-                hourTasks = getCalendarTasks();
-            } else {
-                // Pour les autres heures, afficher les tâches spécifiques à cette heure
-                hourTasks = getTasksForDateAndHour(date, hour);
+            // Afficher les tâches dont la due_date correspond à ce jour (peu importe l'heure), mais uniquement à 17h
+            let dayTasks = [];
+            if (hour === 17) {
+                dayTasks = getCalendarTasks().filter(task => {
+                    if (!task.due_date) return false;
+                    const taskDate = new Date(task.due_date);
+                    return taskDate.toDateString() === date.toDateString();
+                });
             }
-            
             timeSlotsHtml += `
                 <div class="bg-white p-1 min-h-[60px] border-l border-t border-gray-200">
-                    ${hourTasks.map(task => `
+                    ${dayTasks.map(task => `
                         <div class="text-xs p-1 rounded mb-1 cursor-pointer hover:bg-gray-100 ${getPriorityClass(task.priority)}" 
                              onclick="showTaskDetail(${task.id})" 
                              title="${task.title}">
@@ -1903,33 +1902,28 @@ function renderDayView() {
     });
     
     // Obtenir toutes les tâches pour cette date (par date d'échéance)
-    const dayTasks = getCalendarTasks();
+    const dayTasks = getCalendarTasks().filter(task => {
+        if (!task.due_date) return false;
+        const taskDate = new Date(task.due_date);
+        return taskDate.toDateString() === currentDate.toDateString();
+    });
     
     let timeSlotsHtml = '';
     for (let hour = 8; hour <= 18; hour++) {
-        let hourTasks = [];
-        
-        if (hour === 18) {
-            // À 18h, afficher toutes les tâches de la journée
-            hourTasks = dayTasks;
-        } else {
-            // Pour les autres heures, afficher les tâches spécifiques à cette heure
-            hourTasks = getTasksForDateAndHour(currentDate, hour);
-        }
-        
+        // Afficher toutes les tâches du jour uniquement à 17h
+        let showTasks = (hour === 17);
         timeSlotsHtml += `
             <div class="bg-white p-4 border-b border-gray-200">
                 <div class="flex">
                     <div class="w-16 text-sm font-medium text-gray-500">${hour}h</div>
                     <div class="flex-1">
-                        ${hourTasks.map(task => `
+                        ${showTasks ? dayTasks.map(task => `
                             <div class="mb-2 p-3 rounded-lg border cursor-pointer hover:bg-gray-50 ${getPriorityClass(task.priority)}" 
                                  onclick="showTaskDetail(${task.id})">
                                 <div class="font-medium text-sm">${task.title}</div>
                                 ${task.description ? `<div class="text-xs text-gray-600 mt-1">${task.description.substring(0, 50)}${task.description.length > 50 ? '...' : ''}</div>` : ''}
-                                <div class="text-xs text-gray-500 mt-2">${task.project?.name || 'Projet inconnu'}</div>
                             </div>
-                        `).join('')}
+                        `).join('') : ''}
                     </div>
                 </div>
             </div>
@@ -1972,19 +1966,18 @@ function renderThreeDaysView() {
             const date = new Date(startDate);
             date.setDate(startDate.getDate() + day);
             date.setHours(hour);
-            
-            let hourTasks = [];
-            if (hour === 18) {
-                // À 18h, afficher toutes les tâches de la journée (par date d'échéance)
-                hourTasks = getCalendarTasks();
-            } else {
-                // Pour les autres heures, afficher les tâches spécifiques à cette heure
-                hourTasks = getTasksForDateAndHour(date, hour);
+            // Afficher les tâches dont la due_date correspond à ce jour (peu importe l'heure), mais uniquement à 17h
+            let dayTasks = [];
+            if (hour === 17) {
+                dayTasks = getCalendarTasks().filter(task => {
+                    if (!task.due_date) return false;
+                    const taskDate = new Date(task.due_date);
+                    return taskDate.toDateString() === date.toDateString();
+                });
             }
-            
             timeSlotsHtml += `
                 <div class="bg-white p-1 min-h-[60px] border-l border-t border-gray-200">
-                    ${hourTasks.map(task => `
+                    ${dayTasks.map(task => `
                         <div class="text-xs p-1 rounded mb-1 cursor-pointer hover:bg-gray-100 ${getPriorityClass(task.priority)}" 
                              onclick="showTaskDetail(${task.id})" 
                              title="${task.title}">
@@ -2654,6 +2647,16 @@ function openEditTaskModal(taskId) {
         showError('Tâche introuvable');
         return;
     }
+    // Récupérer les membres du projet courant
+    const project = projects.find(p => p.id == currentProject);
+    const members = project && project.members ? project.members : [];
+    // Créer le HTML du select d'assignation
+    let assignSelect = `<div class="mb-4"><label class="block text-sm font-medium mb-1">Assigner à</label><select name="user_ids" id="edit-task-user-ids" multiple class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">`;
+    members.forEach(member => {
+        const selected = task.users && task.users.some(u => u.id == member.id) ? 'selected' : '';
+        assignSelect += `<option value="${member.id}" ${selected}>${member.name}</option>`;
+    });
+    assignSelect += `</select><small class="text-gray-500">Seuls les membres du projet peuvent être assignés</small></div>`;
     // Créer le HTML du modal
     let modal = document.getElementById('edit-task-modal');
     if (!modal) {
@@ -2694,6 +2697,7 @@ function openEditTaskModal(taskId) {
                         <label class="block text-sm font-medium mb-1">Date d'échéance</label>
                         <input type="date" name="due_date" value="${task.due_date ? task.due_date.split('T')[0] : ''}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
+                    ${assignSelect}
                     <div class="flex justify-end space-x-2 mt-6">
                         <button type="button" class="close-modal px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Annuler</button>
                         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Enregistrer</button>
@@ -2712,25 +2716,25 @@ function openEditTaskModal(taskId) {
     form.onsubmit = async function(e) {
         e.preventDefault();
         const formData = new FormData(form);
-        const labelIdsStr = formData.get('label_ids');
-        const labelIds = labelIdsStr ? labelIdsStr.split(',').filter(Boolean).map(Number) : [];
+        const userIds = Array.from(form.querySelector('[name="user_ids"]').selectedOptions).map(opt => parseInt(opt.value));
         const data = {
             title: formData.get('title'),
             description: formData.get('description'),
             category: formData.get('category'),
             priority: formData.get('priority'),
             due_date: formData.get('due_date'),
-            label_ids: labelIds
+            user_ids: userIds
         };
         try {
             const response = await fetch(`/api/tasks/${taskId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
                 body: JSON.stringify(data),
-                credentials: 'omit'
+                credentials: 'include'
             });
             if (response.ok) {
                 modal.style.display = 'none';
@@ -2749,69 +2753,6 @@ function openEditTaskModal(taskId) {
             showError('Erreur lors de la mise à jour de la tâche');
         }
     };
-    // Ajout du bloc labels dans la modale d'édition juste avant les boutons
-    const editForm = modal.querySelector('#edit-task-form');
-    const actionBtns = editForm.querySelector('.flex.justify-end');
-    let labelBadgesHtml = '<div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-2">Labels</label><div id="edit-label-badges" class="flex flex-wrap gap-2 mb-2"></div><input type="hidden" name="label_ids" id="edit-selected-label-ids" value=""></div>';
-    actionBtns.insertAdjacentHTML('beforebegin', labelBadgesHtml);
-    // Charger les labels et initialiser les badges
-    fetch('/api/labels').then(resp => resp.json()).then(labels => {
-        const labelBadgesDiv = document.getElementById('edit-label-badges');
-        let selectedLabelIds = (task.labels || []).map(l => l.id);
-        if (labelBadgesDiv) {
-            labelBadgesDiv.innerHTML = '';
-            labels.forEach(label => {
-                const badge = document.createElement('span');
-                badge.textContent = label.name;
-                badge.className = `label-badge ${label.color} text-xs px-2 py-1 rounded cursor-pointer border border-gray-300 transition-all duration-150`;
-                badge.setAttribute('data-label-id', label.id);
-                if (selectedLabelIds.includes(label.id)) {
-                    badge.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
-                } else {
-                    badge.classList.add('opacity-60');
-                }
-                badge.onclick = function() {
-                    const idx = selectedLabelIds.indexOf(label.id);
-                    if (idx === -1) {
-                        selectedLabelIds.push(label.id);
-                        badge.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
-                        badge.classList.remove('opacity-60');
-                    } else {
-                        selectedLabelIds.splice(idx, 1);
-                        badge.classList.remove('ring-2', 'ring-blue-500', 'border-blue-500');
-                        badge.classList.add('opacity-60');
-                    }
-                    document.getElementById('edit-selected-label-ids').value = selectedLabelIds.join(',');
-                };
-                labelBadgesDiv.appendChild(badge);
-            });
-            document.getElementById('edit-selected-label-ids').value = selectedLabelIds.join(',');
-        }
-    });
-    // Charger les membres du projet pour l'assignation
-    (async () => {
-        try {
-            const resp = await fetch(`/api/projects/${currentProject}/members`);
-            let members = [];
-            if (resp.ok) {
-                members = await resp.json();
-            }
-            const userSelect = document.getElementById('edit-task-user-ids');
-            if (userSelect) {
-                userSelect.innerHTML = '';
-                members.forEach(member => {
-                    const option = document.createElement('option');
-                    option.value = member.id;
-                    option.textContent = member.name + ' (' + member.email + ')';
-                    // Pré-sélectionner si déjà assigné
-                    if (task.users && task.users.some(u => u.id === member.id)) {
-                        option.selected = true;
-                    }
-                    userSelect.appendChild(option);
-                });
-            }
-        } catch (e) { /* ignore */ }
-    })();
 }
 
 function renderLabels(labels) {

@@ -181,4 +181,56 @@ class ProjectController extends Controller
             ->header('Content-Type', 'text/calendar; charset=utf-8')
             ->header('Content-Disposition', 'attachment; filename="project-' . $project->id . '-tasks.ics"');
     }
+
+    /**
+     * Statistiques sur un projet
+     */
+    public function stats(Project $project)
+    {
+        $userId = Auth::id();
+        if (!$project->is_seeded && $userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
+            abort(403, 'Accès non autorisé');
+        }
+
+        $tasks = $project->tasks()->with('users')->get();
+        $members = $project->members;
+
+        // Nombre total de tâches
+        $totalTasks = $tasks->count();
+        // Tâches terminées (completed_at non null)
+        $completedTasks = $tasks->whereNotNull('completed_at');
+        $nbCompleted = $completedTasks->count();
+        // Temps moyen de complétion (en jours)
+        $avgCompletionTime = null;
+        if ($nbCompleted > 0) {
+            $avgCompletionTime = $completedTasks->map(function($task) {
+                return ($task->completed_at && $task->created_at) ? (strtotime($task->completed_at) - strtotime($task->created_at)) / 86400 : null;
+            })->filter()->avg();
+        }
+        // Nombre moyen de tâches accomplies par membre
+        $tasksByMember = [];
+        foreach ($members as $member) {
+            $tasksByMember[$member->id] = [
+                'name' => $member->name,
+                'completed' => $completedTasks->filter(function($task) use ($member) {
+                    return $task->users->contains('id', $member->id);
+                })->count()
+            ];
+        }
+        // Répartition des tâches par catégories
+        $categories = $tasks->groupBy('category')->map(function($group) {
+            return $group->count();
+        });
+        // Nombre de tâches en cours (non terminées)
+        $inProgress = $tasks->whereNull('completed_at')->count();
+
+        return response()->json([
+            'total_tasks' => $totalTasks,
+            'completed_tasks' => $nbCompleted,
+            'in_progress_tasks' => $inProgress,
+            'avg_completion_time_days' => $avgCompletionTime,
+            'tasks_by_member' => array_values($tasksByMember),
+            'categories' => $categories,
+        ]);
+    }
 }

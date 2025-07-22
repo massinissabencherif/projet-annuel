@@ -343,12 +343,7 @@ function showKanbanBoard() {
             <!-- Actions -->
             <div class="flex justify-between items-center">
                 <div class="flex space-x-4">
-                    <button 
-                        onclick="openCreateProjectModal()"
-                        class="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                        Nouveau Projet
-                    </button>
+                    <!-- Suppression du bouton Nouveau Projet ici (en haut, JS) -->
                 </div>
                 <button 
                     onclick="openCreateTaskModal()"
@@ -410,7 +405,10 @@ function showKanbanBoard() {
                 `).join('')}
             </div>
             ${columns.length < 7 ? `
-                <div class="flex justify-center mt-6">
+                <div class="flex justify-center mt-6 space-x-2">
+                    <button id="add-project-btn" class="btn-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                        Nouveau Projet
+                    </button>
                     <button id="add-column-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
                         + Ajouter une colonne
                     </button>
@@ -434,6 +432,13 @@ function showKanbanBoard() {
             if (name && name.trim().length > 0) {
                 createColumn(name.trim());
             }
+        });
+    }
+    // Listener pour ajout de projet
+    const addProjectBtn = document.getElementById('add-project-btn');
+    if (addProjectBtn) {
+        addProjectBtn.addEventListener('click', function() {
+            openCreateProjectModal();
         });
     }
     
@@ -2851,3 +2856,52 @@ function exportICal() {
 }
 
 window.exportICal = exportICal;
+
+function openStatsModal() {
+    const projectSelect = document.getElementById('project-select');
+    const projectId = projectSelect ? projectSelect.value : null;
+    if (!projectId) {
+        alert('Veuillez sélectionner un projet pour voir les statistiques.');
+        return;
+    }
+    const modal = document.getElementById('stats-modal');
+    const content = document.getElementById('stats-content');
+    if (modal && content) {
+        modal.classList.remove('hidden');
+        content.innerHTML = '<div class="text-center text-gray-400">Chargement...</div>';
+        fetchProjectStats(projectId);
+    }
+}
+
+function closeStatsModal() {
+    const modal = document.getElementById('stats-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function fetchProjectStats(projectId) {
+    fetch(`/api/projects/${projectId}/stats`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(stats => {
+            let html = '';
+            html += `<div class='mb-2'><b>Total tâches :</b> ${stats.total_tasks}</div>`;
+            html += `<div class='mb-2'><b>Tâches terminées :</b> ${stats.completed_tasks}</div>`;
+            html += `<div class='mb-2'><b>Tâches en cours :</b> ${stats.in_progress_tasks}</div>`;
+            html += `<div class='mb-2'><b>Temps moyen de complétion :</b> ${stats.avg_completion_time_days ? stats.avg_completion_time_days.toFixed(2) + ' jours' : 'N/A'}</div>`;
+            html += `<div class='mb-2'><b>Tâches accomplies par membre :</b><ul>`;
+            stats.tasks_by_member.forEach(m => {
+                html += `<li>${m.name} : ${m.completed}</li>`;
+            });
+            html += `</ul></div>`;
+            html += `<div class='mb-2'><b>Répartition par catégories :</b><ul>`;
+            Object.entries(stats.categories).forEach(([cat, nb]) => {
+                html += `<li>${cat || 'Non catégorisé'} : ${nb}</li>`;
+            });
+            html += `</ul></div>`;
+            document.getElementById('stats-content').innerHTML = html;
+        })
+        .catch(() => {
+            document.getElementById('stats-content').innerHTML = '<div class="text-red-500">Erreur lors du chargement des statistiques.</div>';
+        });
+}
+window.openStatsModal = openStatsModal;
+window.closeStatsModal = closeStatsModal;

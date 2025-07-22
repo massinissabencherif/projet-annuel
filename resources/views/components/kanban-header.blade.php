@@ -16,11 +16,11 @@
                     </select>
                 </div>
                 <button 
-                    id="new-project-btn"
-                    onclick="openCreateProjectModal()"
-                    class="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    id="stats-btn"
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    onclick="openStatsModal()"
                 >
-                    Nouveau Projet
+                    Statistiques
                 </button>
                 <button 
                     id="manage-members-btn"
@@ -51,3 +51,16 @@
         </div>
     </div>
 </header> 
+
+<!-- En dehors du header, j'ajoute la modale stats -->
+<div id="stats-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center border-b pb-2 mb-4">
+            <h3 class="text-lg font-bold">Statistiques du projet</h3>
+            <button class="close-modal text-gray-500 hover:text-gray-700" onclick="closeStatsModal()">&times;</button>
+        </div>
+        <div id="stats-content">
+            <div class="text-center text-gray-400">Chargement...</div>
+        </div>
+    </div>
+</div> 

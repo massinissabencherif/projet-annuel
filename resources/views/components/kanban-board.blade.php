@@ -7,12 +7,22 @@
                 <h2 class="text-xl font-semibold text-gray-900">{{ $project->name }}</h2>
                 <p class="text-gray-600">{{ $project->description }}</p>
             </div>
-            <button 
-                onclick="openCreateTaskModal()"
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-                Nouvelle Tâche
-            </button>
+            <div class="flex space-x-2">
+                {{-- Suppression du bouton Nouveau Projet ici (en haut) --}}
+                <button 
+                    onclick="openCreateTaskModal()"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                    Nouvelle Tâche
+                </button>
+                <button 
+                    id="stats-btn"
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    onclick="openStatsModal()"
+                >
+                    Statistiques
+                </button>
+            </div>
         </div>
 
         <!-- Kanban Columns -->

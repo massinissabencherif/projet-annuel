@@ -19,7 +19,7 @@ class DemoDataSeeder extends Seeder
         // Crée 5 utilisateurs
         User::factory(5)->create()->each(function ($user) {
             // Pour chaque utilisateur, crée 2 projets
-            Project::factory(2)->create(['creator_id' => $user->id])->each(function ($project) use ($user) {
+            Project::factory(2)->create(['creator_id' => $user->id, 'is_seeded' => true])->each(function ($project) use ($user) {
                 // Pour chaque projet, crée 3 colonnes
                 $columns = Column::factory(3)->create(['project_id' => $project->id]);
                 // Pour chaque projet, crée 5 tâches

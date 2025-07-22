@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->text('description')->nullable();
             $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
+            $table->boolean('is_seeded')->default(false); // Ajouté pour distinguer les projets seedés
             $table->timestamps();
         });
     }

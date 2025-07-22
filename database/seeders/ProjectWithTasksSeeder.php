@@ -18,7 +18,7 @@ class ProjectWithTasksSeeder extends Seeder
                 'password' => bcrypt('password')
             ]
         );
-        Project::factory(10)->create(['creator_id' => $user->id])->each(function ($project) use ($user) {
+        Project::factory(10)->create(['creator_id' => $user->id, 'is_seeded' => true])->each(function ($project) use ($user) {
             $project->members()->syncWithoutDetaching([$user->id]);
             // Créer les colonnes par défaut pour chaque projet
             $defaultColumns = [

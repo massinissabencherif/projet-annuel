@@ -16,16 +16,15 @@ class ProjectController extends Controller
      */
     public function index()
     {
-        // Temporairement : retourner tous les projets si pas d'authentification
         $userId = Auth::id();
         if (!$userId) {
-            $projects = Project::with('members')->get();
+            $projects = Project::where('is_seeded', true)->with('members')->get();
         } else {
-            // Retourne les projets de l'utilisateur connecté
             $projects = Project::where('creator_id', $userId)
                 ->orWhereHas('members', function ($query) use ($userId) {
                     $query->where('user_id', $userId);
                 })
+                ->orWhere('is_seeded', true)
                 ->with('members')
                 ->get();
         }
@@ -39,12 +38,12 @@ class ProjectController extends Controller
     {
         $validated = $request->validated();
         
-        // Récupérer l'utilisateur par son email
-        $user = \App\Models\User::where('email', $validated['creator_email'])->first();
+        // Utiliser l'utilisateur connecté comme créateur
+        $user = Auth::user();
         if (!$user) {
             return response()->json([
-                'message' => 'Utilisateur non trouvé avec cet email'
-            ], 404);
+                'message' => 'Utilisateur non authentifié'
+            ], 401);
         }
         
         $project = Project::create([
@@ -79,8 +78,7 @@ class ProjectController extends Controller
      */
     public function show(Project $project)
     {
-        // Vérifier que l'utilisateur a accès au projet
-        if ($project->creator_id !== Auth::id() && !$project->members->contains(Auth::id())) {
+        if (!$project->is_seeded && $project->creator_id !== Auth::id() && !$project->members->contains(Auth::id())) {
             abort(403, 'Accès non autorisé');
         }
 
@@ -122,9 +120,8 @@ class ProjectController extends Controller
      */
     public function columns(Project $project)
     {
-        // Temporairement : permettre l'accès si pas d'authentification
         $userId = Auth::id();
-        if ($userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
+        if (!$project->is_seeded && $userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
             abort(403, 'Accès non autorisé');
         }
 
@@ -140,9 +137,8 @@ class ProjectController extends Controller
      */
     public function tasks(Project $project)
     {
-        // Temporairement : permettre l'accès si pas d'authentification
         $userId = Auth::id();
-        if ($userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
+        if (!$project->is_seeded && $userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
             abort(403, 'Accès non autorisé');
         }
 

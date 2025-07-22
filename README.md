@@ -10,8 +10,8 @@
 
 ## 1. Cloner le projet
 ```bash
-git clone <url-du-repo>
-cd <nom-du-dossier>
+git clone <https://github.com/massinissabencherif/projet-annuel.git>
+cd <https://github.com/massinissabencherif/projet-annuel.git>
 ```
 
 ## 2. Installer les dépendances PHP
@@ -32,7 +32,7 @@ cp .env.example .env
 
 Générez la clé d'application Laravel :
 ```bash
-php artisan key:generate
+.vendor/bin/sail artisan key:generate
 ```
 
 ## 5. Créer la base de données
@@ -41,7 +41,7 @@ php artisan key:generate
 
 ## 6. Lancer les migrations et les seeders
 ```bash
-php artisan migrate --seed
+./vendor/bin/sail artisan migrate --seed
 ```
 
 ## 7. Compiler les assets front-end
@@ -56,7 +56,7 @@ npm run build
 
 ## 8. Lancer le serveur de développement Laravel
 ```bash
-php artisan serve
+./vendor/bin/sail artisan serve
 ```
 
 L'application sera accessible sur http://localhost:8000
@@ -100,5 +100,3 @@ docker-compose up --build
 - `tests/` : tests automatisés
 
 ---
-
-**Pour toute question, consulte le fichier `features.md`, `roadmap.md` ou demande à l'équipe !**

@@ -175,13 +175,6 @@ function updateProjectSelect() {
     projectSelect.innerHTML = '';
     projectSelect.appendChild(defaultOption);
     
-    // Ajouter l'option "Tous les projets"
-    const allProjectsOption = document.createElement('option');
-    allProjectsOption.value = 'all';
-    allProjectsOption.textContent = 'Tous les projets';
-    projectSelect.appendChild(allProjectsOption);
-    console.log('Option ajoutée: Tous les projets (ID: all)');
-    
     // Ajouter les projets
     projects.forEach(project => {
         const option = document.createElement('option');
@@ -191,7 +184,7 @@ function updateProjectSelect() {
         console.log('Option ajoutée:', project.name, '(ID:', project.id, ')');
     });
     
-    console.log('Sélecteur mis à jour avec', projects.length + 2, 'projets (incluant "Tous les projets" et défaut)');
+    console.log('Sélecteur mis à jour avec', projects.length + 1, 'projets (incluant "Sélectionner un projet")');
 
     // === RESTAURATION DE LA SÉLECTION APRÈS PEUPLEMENT ===
     const savedProject = localStorage.getItem('kanban_selected_project');

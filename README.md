@@ -100,3 +100,21 @@ docker-compose up --build
 - `tests/` : tests automatisés
 
 ---
+
+Si l'environnement n'est pas facilement installable, on peut repartir d'une base vide en faisant :
+
+
+mkdir kanboard cd kanboard
+composer global require laravel
+installer laravel new kanboard-back
+cd kanboard-back
+npm install && npm run build
+composer run dev composer require laravel/sail --dev
+php artisan sail:install
+./vendor/bin/sail up
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail composer require laravel/breeze --dev 
+./vendor/bin/sail artisan breeze:install
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run dev

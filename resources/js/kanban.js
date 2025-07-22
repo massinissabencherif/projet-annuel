@@ -283,6 +283,7 @@ async function loadProjectData(projectId) {
     
     // Après avoir chargé les tâches :
     console.log('=== LOG DIAGNOSTIC : tasks ===', tasks);
+    window._debugTasks = tasks;
 }
 
 function showLoading() {
@@ -396,7 +397,7 @@ function showKanbanBoard() {
                                     <div class="flex items-center justify-between mt-2">
                                         <span class="text-xs text-gray-500">Créée le ${formatDate(task.created_at)}</span>
                                         <div class="flex -space-x-1">
-                                            ${task.users && task.users.length > 0 ? task.users.slice(0, 3).map(user => `<div class='w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs' title='${user.name}'>${user.name.charAt(0).toUpperCase()}</div>`).join('') : '<span class="text-xs text-gray-400">Non assigné</span>'}
+                                            ${(task.users && task.users.length > 0) ? task.users.map(user => `<span style='color:red'>${user.name}</span>`).join(', ') : '<span class="text-xs text-gray-400">Non assigné</span>'}
                                             ${task.users.length > 3 ? `<div class='w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 text-xs'>+${task.users.length - 3}</div>` : ''}
                                         </div>
                                     </div>

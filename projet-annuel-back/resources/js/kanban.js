@@ -2686,12 +2686,15 @@ function openEditTaskModal(taskId) {
     form.onsubmit = async function(e) {
         e.preventDefault();
         const formData = new FormData(form);
+        const labelIdsStr = formData.get('label_ids');
+        const labelIds = labelIdsStr ? labelIdsStr.split(',').filter(Boolean).map(Number) : [];
         const data = {
             title: formData.get('title'),
             description: formData.get('description'),
             category: formData.get('category'),
             priority: formData.get('priority'),
             due_date: formData.get('due_date'),
+            label_ids: labelIds
         };
         try {
             const response = await fetch(`/api/tasks/${taskId}`, {
@@ -2711,20 +2714,55 @@ function openEditTaskModal(taskId) {
                     await loadTasksForListView();
                 }
             } else {
-                const errorData = await response.json();
-                showError('Erreur lors de la modification: ' + (errorData.message || 'Erreur inconnue'));
+                // La mise à jour a échoué, affichez un message d'erreur
+                console.error('Erreur lors de la mise à jour de la tâche:', response.statusText);
+                showError('Erreur lors de la mise à jour de la tâche');
             }
-        } catch (e) {
-            showError('Erreur lors de la modification');
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour de la tâche:', error);
+            showError('Erreur lors de la mise à jour de la tâche');
         }
     };
+    // Ajout du bloc labels dans la modale d'édition juste avant les boutons
+    const editForm = modal.querySelector('#edit-task-form');
+    const actionBtns = editForm.querySelector('.flex.justify-end');
+    let labelBadgesHtml = '<div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-2">Labels</label><div id="edit-label-badges" class="flex flex-wrap gap-2 mb-2"></div><input type="hidden" name="label_ids" id="edit-selected-label-ids" value=""></div>';
+    actionBtns.insertAdjacentHTML('beforebegin', labelBadgesHtml);
+    // Charger les labels et initialiser les badges
+    fetch('/api/labels').then(resp => resp.json()).then(labels => {
+        const labelBadgesDiv = document.getElementById('edit-label-badges');
+        let selectedLabelIds = (task.labels || []).map(l => l.id);
+        if (labelBadgesDiv) {
+            labelBadgesDiv.innerHTML = '';
+            labels.forEach(label => {
+                const badge = document.createElement('span');
+                badge.textContent = label.name;
+                badge.className = `label-badge ${label.color} text-xs px-2 py-1 rounded cursor-pointer border border-gray-300 transition-all duration-150`;
+                badge.setAttribute('data-label-id', label.id);
+                if (selectedLabelIds.includes(label.id)) {
+                    badge.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
+                } else {
+                    badge.classList.add('opacity-60');
+                }
+                badge.onclick = function() {
+                    const idx = selectedLabelIds.indexOf(label.id);
+                    if (idx === -1) {
+                        selectedLabelIds.push(label.id);
+                        badge.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
+                        badge.classList.remove('opacity-60');
+                    } else {
+                        selectedLabelIds.splice(idx, 1);
+                        badge.classList.remove('ring-2', 'ring-blue-500', 'border-blue-500');
+                        badge.classList.add('opacity-60');
+                    }
+                    document.getElementById('edit-selected-label-ids').value = selectedLabelIds.join(',');
+                };
+                labelBadgesDiv.appendChild(badge);
+            });
+            document.getElementById('edit-selected-label-ids').value = selectedLabelIds.join(',');
+        }
+    });
 }
-// Rendre la fonction accessible globalement
-window.openEditTaskModal = openEditTaskModal;
-
-// ... existing code ...
-window.editTaskFromList = editTaskFromList;
-// ... existing code ...
 
 function renderLabels(labels) {
     if (!labels || labels.length === 0) return '';
@@ -2732,3 +2770,6 @@ function renderLabels(labels) {
         labels.map(label => `<span class=\"inline-block ${label.color} text-xs px-2 py-0.5 rounded border border-gray-300\">${label.name}</span>`).join('') +
         `</div>`;
 }
+window.renderLabels = renderLabels;
+
+window.openEditTaskModal = openEditTaskModal;

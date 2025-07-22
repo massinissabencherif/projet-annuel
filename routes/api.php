@@ -28,6 +28,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('projects', ProjectController::class);
     Route::get('projects/{project}/columns', [ProjectController::class, 'columns']);
     Route::get('projects/{project}/tasks', [ProjectController::class, 'tasks']);
+    Route::get('projects/{project}/ical', [ProjectController::class, 'exportICal']);
     // Routes pour la gestion des membres de projet
     Route::get('/projects/{project}/members', [ProjectMemberController::class, 'index']);
     Route::post('/projects/{project}/invite', [ProjectMemberController::class, 'invite']);

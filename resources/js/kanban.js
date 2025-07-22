@@ -2825,3 +2825,36 @@ function renderLabels(labels) {
 window.renderLabels = renderLabels;
 
 window.openEditTaskModal = openEditTaskModal;
+
+function exportICal() {
+    const projectSelect = document.getElementById('project-select');
+    const projectId = projectSelect ? projectSelect.value : null;
+    if (!projectId) {
+        alert('Veuillez sélectionner un projet à exporter.');
+        return;
+    }
+    const url = `/api/projects/${projectId}/ical`;
+    fetch(url, {
+        credentials: 'include',
+        headers: {
+            'Accept': 'text/calendar'
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Erreur lors de la génération du fichier iCal');
+        return response.blob();
+    })
+    .then(blob => {
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = `project-${projectId}-tasks.ics`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    })
+    .catch(err => {
+        alert(err.message);
+    });
+}
+
+window.exportICal = exportICal;

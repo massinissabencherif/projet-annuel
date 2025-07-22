@@ -146,4 +146,39 @@ class ProjectController extends Controller
 
         return response()->json($tasks);
     }
+
+    /**
+     * Exporter les tâches d'un projet au format iCal
+     */
+    public function exportICal(Project $project)
+    {
+        $userId = Auth::id();
+        if (!$project->is_seeded && $userId && $project->creator_id !== $userId && !$project->members->contains($userId)) {
+            abort(403, 'Accès non autorisé');
+        }
+
+        $tasks = $project->tasks()->get();
+        $ical = [];
+        $ical[] = 'BEGIN:VCALENDAR';
+        $ical[] = 'VERSION:2.0';
+        $ical[] = 'PRODID:-//KanbanApp//EN';
+        foreach ($tasks as $task) {
+            $ical[] = 'BEGIN:VEVENT';
+            $ical[] = 'UID:task-' . $task->id . '@kanban';
+            $ical[] = 'SUMMARY:' . addcslashes($task->title, ",;\\");
+            if ($task->description) {
+                $ical[] = 'DESCRIPTION:' . addcslashes($task->description, ",;\\");
+            }
+            if ($task->due_date) {
+                $ical[] = 'DTSTART;VALUE=DATE:' . date('Ymd', strtotime($task->due_date));
+                $ical[] = 'DTEND;VALUE=DATE:' . date('Ymd', strtotime($task->due_date));
+            }
+            $ical[] = 'END:VEVENT';
+        }
+        $ical[] = 'END:VCALENDAR';
+        $icalContent = implode("\r\n", $ical);
+        return response($icalContent, 200)
+            ->header('Content-Type', 'text/calendar; charset=utf-8')
+            ->header('Content-Disposition', 'attachment; filename="project-' . $project->id . '-tasks.ics"');
+    }
 }

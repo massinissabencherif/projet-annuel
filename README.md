@@ -59,9 +59,9 @@ npm run build
 ./vendor/bin/sail artisan serve
 ```
 
-L'application sera accessible sur http://localhost:8000
+L'application sera accessible sur http://localhost
 
-## 9. (Optionnel) Lancer avec Docker
+## 9. Lancer avec Docker
 Si tu veux utiliser Docker Compose :
 ```bash
 docker-compose up --build

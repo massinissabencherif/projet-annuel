@@ -80,6 +80,12 @@
                     </select>
                 </div>
                 
+                <div class="mb-4" id="label-select-block">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Labels</label>
+                    <div id="label-badges" class="flex flex-wrap gap-2"></div>
+                    <input type="hidden" name="label_ids" id="selected-label-ids" value="">
+                </div>
+                
                 <div class="flex justify-end space-x-3">
                     <button 
                         type="button"

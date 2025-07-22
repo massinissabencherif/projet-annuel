@@ -364,10 +364,15 @@ function showKanbanBoard() {
             <!-- Kanban Columns -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 ${columns.map(column => `
-                    <div class="bg-white rounded-lg shadow-sm border">
-                        <div class="p-4 border-b bg-gray-50" data-column-id="${column.id}">
-                            <h3 class="font-medium text-gray-900">${column.name}</h3>
-                            <p class="text-sm text-gray-500">${getTasksForColumn(column.id).length} tâches</p>
+                    <div class="bg-white rounded-lg shadow-sm border relative">
+                        <div class="p-4 border-b bg-gray-50 flex items-center justify-between" data-column-id="${column.id}">
+                            <div>
+                                <h3 class="font-medium text-gray-900">${column.name}</h3>
+                                <p class="text-sm text-gray-500">${getTasksForColumn(column.id).length} tâches</p>
+                            </div>
+                            <button class="delete-column-btn ml-2 text-red-500 hover:text-red-700" data-column-id="${column.id}" title="Supprimer la colonne">
+                                🗑️
+                            </button>
                         </div>
                         <div class="p-4 space-y-3 min-h-[200px]">
                             ${getTasksForColumn(column.id).map(task => `
@@ -377,7 +382,7 @@ function showKanbanBoard() {
                                     data-column-id="${column.id}"
                                 >
                                     <div class="flex items-start justify-between mb-2">
-                                        <h4 class="font-medium text-gray-900 text-sm">${task.title}</h4>
+                                        <div class="flex items-center"><h4 class="font-medium text-gray-900 text-sm">${task.title}</h4><button onclick="openEditTaskModal(${task.id})" class="ml-2 text-blue-600 hover:text-blue-900 text-xs" title="Modifier">✏️</button></div>
                                         <span class="${getPriorityClass(task.priority)} text-xs px-2 py-1 rounded-full">
                                             ${getPriorityLabel(task.priority)}
                                         </span>
@@ -398,6 +403,7 @@ function showKanbanBoard() {
                                             </div>
                                         ` : ''}
                                     </div>
+                                    ${renderLabels(task.labels)}
                                 </div>
                             `).join('')}
                             ${getTasksForColumn(column.id).length === 0 ? `
@@ -412,12 +418,38 @@ function showKanbanBoard() {
                     </div>
                 `).join('')}
             </div>
+            ${columns.length < 7 ? `
+                <div class="flex justify-center mt-6">
+                    <button id="add-column-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                        + Ajouter une colonne
+                    </button>
+                </div>
+            ` : ''}
         </div>
     `;
+
+    // Ajout des listeners pour suppression de colonne
+    document.querySelectorAll('.delete-column-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            const columnId = e.currentTarget.getAttribute('data-column-id');
+            openDeleteColumnModal(columnId);
+        });
+    });
+    // Listener pour ajout de colonne
+    const addColumnBtn = document.getElementById('add-column-btn');
+    if (addColumnBtn) {
+        addColumnBtn.addEventListener('click', function() {
+            const name = prompt('Nom de la nouvelle colonne :');
+            if (name && name.trim().length > 0) {
+                createColumn(name.trim());
+            }
+        });
+    }
     
     // Initialiser le drag & drop après l'affichage
     setTimeout(() => {
         initializeCustomDragAndDrop();
+        initializeColumnDragAndDrop();
     }, 100);
     
     // Mettre à jour les filtres de colonne pour la vue liste
@@ -475,24 +507,64 @@ function openCreateProjectModal() {
     }
 }
 
-function openCreateTaskModal() {
+async function openCreateTaskModal() {
     console.log('=== OUVERTURE MODAL CRÉATION TÂCHE ===');
     console.log('Projet actuel:', currentProject);
-    
     if (!currentProject) {
         showError('Veuillez sélectionner un projet d\'abord');
         return;
     }
-    
     const modal = document.getElementById('create-task-modal');
     if (modal) {
         modal.classList.remove('hidden');
         console.log('Modal création tâche ouverte');
-        // Charger les colonnes dans le select
         loadColumnsForTaskModal();
     } else {
         console.error('Modal création tâche non trouvée');
     }
+    // Charger les labels
+    let labels = [];
+    try {
+        const resp = await fetch('/api/labels');
+        if (resp.ok) {
+            labels = await resp.json();
+        }
+    } catch (e) { labels = []; }
+    // Initialiser les badges après affichage de la modale
+    setTimeout(() => {
+        let selectedLabelIds = [];
+        const labelBadgesDiv = document.getElementById('label-badges');
+        console.log('[DEBUG] labelBadgesDiv:', labelBadgesDiv);
+        console.log('[DEBUG] labels à injecter:', labels);
+        if (labelBadgesDiv) {
+            labelBadgesDiv.innerHTML = '';
+            labels.forEach(label => {
+                const badge = document.createElement('span');
+                badge.textContent = label.name;
+                badge.className = `label-badge ${label.color} text-xs px-2 py-1 rounded cursor-pointer border border-gray-300 transition-all duration-150`;
+                badge.setAttribute('data-label-id', label.id);
+                badge.onclick = function() {
+                    console.log('[DEBUG] Clic sur label', label.name, 'état avant:', badge.className);
+                    const idx = selectedLabelIds.indexOf(label.id);
+                    if (idx === -1) {
+                        selectedLabelIds.push(label.id);
+                        badge.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
+                        badge.classList.remove('opacity-60');
+                    } else {
+                        selectedLabelIds.splice(idx, 1);
+                        badge.classList.remove('ring-2', 'ring-blue-500', 'border-blue-500');
+                        badge.classList.add('opacity-60');
+                    }
+                    document.getElementById('selected-label-ids').value = selectedLabelIds.join(',');
+                    console.log('[DEBUG] État après:', badge.className);
+                };
+                badge.classList.add('opacity-60');
+                labelBadgesDiv.appendChild(badge);
+            });
+            document.getElementById('selected-label-ids').value = '';
+            console.log('[DEBUG] labelBadgesDiv après injection:', labelBadgesDiv.innerHTML);
+        }
+    }, 0);
 }
 
 function closeModal() {
@@ -604,6 +676,8 @@ async function createTask(event) {
     const form = event.target;
     const formData = new FormData(form);
     
+    const labelIdsStr = formData.get('label_ids');
+    const labelIds = labelIdsStr ? labelIdsStr.split(',').filter(Boolean).map(Number) : [];
     const taskData = {
         title: formData.get('title'),
         description: formData.get('description'),
@@ -611,7 +685,8 @@ async function createTask(event) {
         priority: formData.get('priority'),
         due_date: formData.get('due_date'),
         column_id: formData.get('column_id'),
-        project_id: currentProject
+        project_id: currentProject,
+        label_ids: labelIds
     };
     
     console.log('Données de la tâche à créer:', taskData);
@@ -940,7 +1015,22 @@ function cleanupDrag() {
 async function moveTaskToColumn(taskId, newColumnId) {
     console.log('=== DÉPLACEMENT TÂCHE VERS COLONNE ===');
     console.log('Tâche ID:', taskId, 'Nouvelle colonne ID:', newColumnId);
-    
+
+    // Trouver la colonne cible
+    const targetColumn = Array.isArray(columns) ? columns.find(col => col.id == newColumnId) : null;
+    // Trouver la colonne "Terminé" (is_terminal)
+    const termineColumn = Array.isArray(columns) ? columns.find(col => col.is_terminal) : null;
+
+    // Préparer le body de la requête
+    let body = { column_id: newColumnId };
+    if (targetColumn && targetColumn.is_terminal) {
+        // Si on déplace vers "Terminé", on marque comme terminé
+        body.completed_at = formatDateForLaravel(new Date());
+    } else if (termineColumn && tasks.find(t => t.id == taskId)?.column_id == termineColumn.id) {
+        // Si on sort de "Terminé", on réouvre la tâche
+        body.completed_at = null;
+    }
+
     try {
         const response = await fetch(`/api/tasks/${taskId}/move`, {
             method: 'PATCH',
@@ -948,9 +1038,7 @@ async function moveTaskToColumn(taskId, newColumnId) {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
             },
-            body: JSON.stringify({
-                column_id: newColumnId
-            })
+            body: JSON.stringify(body)
         });
         
         if (response.ok) {
@@ -1247,7 +1335,15 @@ function createTaskRow(task) {
     // Déterminer si on doit afficher la colonne projet et masquer la colonne colonne
     const showProjectColumn = currentProject === 'all';
     const showColumnColumn = currentProject !== 'all';
-    
+
+    // Déterminer le bouton d'action (Terminer ou Réouvrir)
+    let actionBtn = '';
+    if (task.completed_at) {
+        actionBtn = `<button onclick="handleTaskStatusAction(${task.id}, 'reopen')" class="text-green-600 hover:text-green-900 mr-3">Réouvrir</button>`;
+    } else {
+        actionBtn = `<button onclick="handleTaskStatusAction(${task.id}, 'terminate')" class="text-gray-600 hover:text-gray-900 mr-3">Terminer</button>`;
+    }
+
     return `
         <tr class="hover:bg-gray-50">
             <td class="px-6 py-4 whitespace-nowrap">
@@ -1265,9 +1361,11 @@ function createTaskRow(task) {
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${assignedUsers}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${createdDate}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                ${actionBtn}
                 <button onclick="editTaskFromList(${task.id})" class="text-blue-600 hover:text-blue-900 mr-3">Modifier</button>
                 <button onclick="deleteTaskFromList(${task.id})" class="text-red-600 hover:text-red-900">Supprimer</button>
             </td>
+            <td class="px-6 py-4 whitespace-nowrap">${renderLabels(task.labels)}</td>
         </tr>
     `;
 }
@@ -1394,9 +1492,7 @@ function debounce(func, wait) {
 
 // Fonction pour éditer une tâche depuis la liste
 function editTaskFromList(taskId) {
-    // TODO: Implémenter l'édition depuis la liste
-    console.log('Éditer la tâche:', taskId);
-    alert('Fonctionnalité d\'édition à implémenter');
+    openEditTaskModal(taskId);
 }
 
 // Fonction pour supprimer une tâche depuis la liste
@@ -1679,7 +1775,11 @@ function renderMonthView() {
         
         const isCurrentMonth = date.getMonth() === month;
         const isToday = date.toDateString() === new Date().toDateString();
-        const dayTasks = getTasksForDate(date);
+        const dayTasks = getCalendarTasks().filter(task => {
+            if (!task.due_date) return false;
+            const taskDate = new Date(task.due_date);
+            return taskDate.toDateString() === date.toDateString();
+        });
         
         html += `
             <div class="bg-white min-h-[120px] p-2 ${isCurrentMonth ? '' : 'bg-gray-50'} ${isToday ? 'ring-2 ring-blue-500' : ''}">
@@ -1741,7 +1841,7 @@ function renderWeekView() {
             let hourTasks = [];
             if (hour === 18) {
                 // À 18h, afficher toutes les tâches de la journée (par date d'échéance)
-                hourTasks = getTasksForDate(date);
+                hourTasks = getCalendarTasks();
             } else {
                 // Pour les autres heures, afficher les tâches spécifiques à cette heure
                 hourTasks = getTasksForDateAndHour(date, hour);
@@ -1777,7 +1877,7 @@ function renderDayView() {
     });
     
     // Obtenir toutes les tâches pour cette date (par date d'échéance)
-    const dayTasks = getTasksForDate(currentDate);
+    const dayTasks = getCalendarTasks();
     
     let timeSlotsHtml = '';
     for (let hour = 8; hour <= 18; hour++) {
@@ -1850,7 +1950,7 @@ function renderThreeDaysView() {
             let hourTasks = [];
             if (hour === 18) {
                 // À 18h, afficher toutes les tâches de la journée (par date d'échéance)
-                hourTasks = getTasksForDate(date);
+                hourTasks = getCalendarTasks();
             } else {
                 // Pour les autres heures, afficher les tâches spécifiques à cette heure
                 hourTasks = getTasksForDateAndHour(date, hour);
@@ -1897,14 +1997,6 @@ function updateCalendarTitle() {
     }
 }
 
-// Fonction pour obtenir les tâches pour une date
-function getTasksForDate(date) {
-    return calendarTasks.filter(task => {
-        if (!task.due_date) return false;
-        const taskDate = new Date(task.due_date);
-        return taskDate.toDateString() === date.toDateString();
-    });
-}
 
 // Fonction pour obtenir les tâches pour une date et une heure
 function getTasksForDateAndHour(date, hour) {
@@ -2258,4 +2350,385 @@ if (viewSelectorInit) {
     viewSelectorInit.addEventListener('change', function(event) {
         localStorage.setItem('kanban_selected_view', event.target.value);
     });
+}
+
+// Ajout de la modale de confirmation suppression colonne
+function openDeleteColumnModal(columnId) {
+    if (document.getElementById('delete-column-modal')) {
+        document.getElementById('delete-column-modal').remove();
+    }
+    const modal = document.createElement('div');
+    modal.id = 'delete-column-modal';
+    modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center';
+    modal.innerHTML = `
+        <div class="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Supprimer la colonne</h3>
+                    <button class="modal-close text-gray-400 hover:text-gray-600" id="close-delete-column-modal">✕</button>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-700">Attention - Supprimer cette colonne terminera toutes les tâches qui y appartiennent.</p>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button 
+                        type="button"
+                        class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                        id="cancel-delete-column"
+                    >
+                        Annuler
+                    </button>
+                    <button 
+                        type="button"
+                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                        id="confirm-delete-column"
+                    >
+                        Oui je souhaite supprimer cette colonne
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('close-delete-column-modal').onclick = () => modal.remove();
+    document.getElementById('cancel-delete-column').onclick = () => modal.remove();
+    document.getElementById('confirm-delete-column').onclick = async () => {
+        await deleteColumn(columnId);
+        modal.remove();
+    };
+}
+
+// Appel API création colonne
+async function createColumn(name) {
+    if (!currentProject) return;
+    try {
+        const response = await fetch('/api/columns', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                project_id: currentProject,
+                name: name
+            })
+        });
+        if (response.ok) {
+            showSuccess('Colonne ajoutée !');
+            await loadProjectData(currentProject);
+        } else {
+            const data = await response.json();
+            showError(data.error || 'Erreur lors de l\'ajout de la colonne');
+        }
+    } catch (e) {
+        showError('Erreur lors de l\'ajout de la colonne');
+    }
+}
+
+// Appel API suppression colonne
+async function deleteColumn(columnId) {
+    try {
+        const response = await fetch(`/api/columns/${columnId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        if (response.ok) {
+            showSuccess('Colonne supprimée !');
+            await loadProjectData(currentProject);
+        } else {
+            const data = await response.json();
+            showError(data.error || 'Erreur lors de la suppression de la colonne');
+        }
+    } catch (e) {
+        showError('Erreur lors de la suppression de la colonne');
+    }
+}
+
+// === DRAG & DROP DES COLONNES ===
+// Ajout du style d'animation pour les colonnes Kanban
+(function() {
+    if (!document.getElementById('kanban-col-anim-style')) {
+        const style = document.createElement('style');
+        style.id = 'kanban-col-anim-style';
+        style.innerHTML = `
+            .kanban-col-anim {
+                transition: box-shadow 0.2s, transform 0.2s;
+            }
+            .kanban-col-dropzone {
+                box-shadow: 0 0 0 4px #3b82f6;
+                border-color: #3b82f6 !important;
+                z-index: 10;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+})();
+
+function initializeColumnDragAndDrop() {
+    const columnsContainer = document.querySelector('.grid.grid-cols-1, .grid-cols-2, .grid-cols-3');
+    if (!columnsContainer) return;
+    let draggedCol = null;
+    let dragOverCol = null;
+    columnsContainer.querySelectorAll('.bg-white.rounded-lg.shadow-sm.border').forEach((col) => {
+        col.classList.add('kanban-col-anim');
+        const header = col.querySelector('.p-4.border-b.bg-gray-50');
+        if (!header) return;
+        header.style.cursor = 'grab';
+        header.setAttribute('draggable', 'true');
+        col.setAttribute('draggable', 'false');
+        // Drag events sur le header uniquement
+        header.addEventListener('dragstart', function(e) {
+            draggedCol = col;
+            col.classList.add('opacity-50');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        header.addEventListener('dragend', function(e) {
+            if (draggedCol) draggedCol.classList.remove('opacity-50');
+            document.querySelectorAll('.kanban-col-dropzone').forEach(el => el.classList.remove('kanban-col-dropzone'));
+            draggedCol = null;
+            dragOverCol = null;
+            persistColumnOrder();
+        });
+        // Zone de drop sur toute la colonne
+        col.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            if (dragOverCol && dragOverCol !== col) {
+                dragOverCol.classList.remove('kanban-col-dropzone');
+            }
+            dragOverCol = col;
+            col.classList.add('kanban-col-dropzone');
+        });
+        col.addEventListener('dragleave', function(e) {
+            col.classList.remove('kanban-col-dropzone');
+        });
+        col.addEventListener('drop', function(e) {
+            e.preventDefault();
+            col.classList.remove('kanban-col-dropzone');
+            if (draggedCol && col !== draggedCol) {
+                // Drop : la colonne déplacée prend la place de la colonne cible, les suivantes sont décalées à droite
+                const allCols = Array.from(columnsContainer.querySelectorAll('.bg-white.rounded-lg.shadow-sm.border'));
+                const fromIdx = allCols.indexOf(draggedCol);
+                const toIdx = allCols.indexOf(col);
+                if (fromIdx < toIdx) {
+                    // Si A était à gauche de B, on insère A après B
+                    col.parentNode.insertBefore(draggedCol, col.nextSibling);
+                } else {
+                    // Si A était à droite de B, on insère A avant B
+                    col.parentNode.insertBefore(draggedCol, col);
+                }
+            }
+        });
+    });
+}
+
+async function persistColumnOrder() {
+    const columnsContainer = document.querySelector('.grid.grid-cols-1');
+    if (!columnsContainer) return;
+    const colDivs = columnsContainer.querySelectorAll('.bg-white.rounded-lg.shadow-sm.border');
+    const ids = Array.from(colDivs).map(div => {
+        const header = div.querySelector('[data-column-id]');
+        return header ? header.getAttribute('data-column-id') : null;
+    }).filter(Boolean);
+    if (!currentProject || ids.length === 0) return;
+    try {
+        const response = await fetch(`/api/projects/${currentProject}/columns/reorder`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ column_ids: ids })
+        });
+        if (response.ok) {
+            await loadProjectData(currentProject);
+        } else {
+            showError('Erreur lors de la sauvegarde de l\'ordre des colonnes');
+        }
+    } catch (e) {
+        showError('Erreur lors de la sauvegarde de l\'ordre des colonnes');
+    }
+}
+
+// Filtrer les tâches pour le calendrier (exclure les terminées)
+function getCalendarTasks() {
+    // Exclure les tâches terminées ET celles dans la colonne Annulé
+    const annuleColumn = Array.isArray(columns) ? columns.find(col => col.name && col.name.toLowerCase() === 'annulé') : null;
+    return calendarTasks.filter(task => {
+        if (task.completed_at) return false;
+        if (annuleColumn && task.column_id == annuleColumn.id) return false;
+        return true;
+    });
+}
+
+function formatDateForLaravel(date) {
+    // Retourne une date au format 'YYYY-MM-DD HH:mm:ss'
+    const pad = n => n < 10 ? '0' + n : n;
+    return date.getFullYear() + '-' +
+        pad(date.getMonth() + 1) + '-' +
+        pad(date.getDate()) + ' ' +
+        pad(date.getHours()) + ':' +
+        pad(date.getMinutes()) + ':' +
+        pad(date.getSeconds());
+}
+
+async function handleTaskStatusAction(taskId, action) {
+    // Récupérer les colonnes cible
+    const termineCol = columns.find(col => col.name && col.name.toLowerCase() === 'terminé');
+    const aFaireCol = columns.find(col => col.name && col.name.toLowerCase().includes('à faire'));
+    if (!termineCol || !aFaireCol) {
+        showError('Colonnes "Terminé" ou "À faire" introuvables');
+        return;
+    }
+    let targetColId = null;
+    let completedAt = null;
+    if (action === 'terminate') {
+        targetColId = termineCol.id;
+        completedAt = formatDateForLaravel(new Date());
+    } else if (action === 'reopen') {
+        targetColId = aFaireCol.id;
+        completedAt = null;
+    } else {
+        return;
+    }
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/move`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                column_id: targetColId,
+                completed_at: completedAt
+            })
+        });
+        if (response.ok) {
+            // Toujours rafraîchir la Kanban
+            await loadProjectData(currentProject);
+            // Rafraîchir la vue liste si besoin
+            if (currentView === 'list') {
+                await loadTasksForListView();
+            }
+        } else {
+            const errorData = await response.json();
+            showError('Erreur lors du changement de statut: ' + (errorData.message || 'Erreur inconnue'));
+        }
+    } catch (e) {
+        showError('Erreur lors du changement de statut');
+    }
+}
+
+window.handleTaskStatusAction = handleTaskStatusAction;
+
+function openEditTaskModal(taskId) {
+    const task = tasks.find(t => t.id == taskId);
+    if (!task) {
+        showError('Tâche introuvable');
+        return;
+    }
+    // Créer le HTML du modal
+    let modal = document.getElementById('edit-task-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'edit-task-modal';
+        modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-medium text-gray-900">Modifier la tâche</h2>
+                    <button class="close-modal text-gray-400 hover:text-gray-600 text-2xl" title="Fermer">&times;</button>
+                </div>
+                <form id="edit-task-form">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Titre</label>
+                        <input type="text" name="title" value="${task.title || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Description</label>
+                        <textarea name="description" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">${task.description || ''}</textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Catégorie</label>
+                        <input type="text" name="category" value="${task.category || ''}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Priorité</label>
+                        <select name="priority" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Faible</option>
+                            <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Moyenne</option>
+                            <option value="high" ${task.priority === 'high' ? 'selected' : ''}>Élevée</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Date d'échéance</label>
+                        <input type="date" name="due_date" value="${task.due_date ? task.due_date.split('T')[0] : ''}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div class="flex justify-end space-x-2 mt-6">
+                        <button type="button" class="close-modal px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Annuler</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+    // Fermer le modal
+    modal.querySelectorAll('.close-modal').forEach(btn => {
+        btn.onclick = () => { modal.style.display = 'none'; };
+    });
+    // Soumission du formulaire
+    const form = modal.querySelector('#edit-task-form');
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const data = {
+            title: formData.get('title'),
+            description: formData.get('description'),
+            category: formData.get('category'),
+            priority: formData.get('priority'),
+            due_date: formData.get('due_date'),
+        };
+        try {
+            const response = await fetch(`/api/tasks/${taskId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data),
+                credentials: 'omit'
+            });
+            if (response.ok) {
+                modal.style.display = 'none';
+                showSuccess('Tâche modifiée avec succès !');
+                await loadProjectData(currentProject);
+                if (currentView === 'list') {
+                    await loadTasksForListView();
+                }
+            } else {
+                const errorData = await response.json();
+                showError('Erreur lors de la modification: ' + (errorData.message || 'Erreur inconnue'));
+            }
+        } catch (e) {
+            showError('Erreur lors de la modification');
+        }
+    };
+}
+// Rendre la fonction accessible globalement
+window.openEditTaskModal = openEditTaskModal;
+
+// ... existing code ...
+window.editTaskFromList = editTaskFromList;
+// ... existing code ...
+
+function renderLabels(labels) {
+    if (!labels || labels.length === 0) return '';
+    return `<div class=\"flex flex-wrap gap-1 mb-1\">` +
+        labels.map(label => `<span class=\"inline-block ${label.color} text-xs px-2 py-0.5 rounded border border-gray-300\">${label.name}</span>`).join('') +
+        `</div>`;
 }

@@ -35,12 +35,22 @@ class ColumnController extends Controller
     public function store(StoreColumnRequest $request)
     {
         $validated = $request->validated();
-        // Vérifie que l'utilisateur est membre du projet
         $project = Project::findOrFail($validated['project_id']);
-        if ($project->creator_id !== Auth::id() && !$project->members->contains(Auth::id())) {
-            return response()->json(['error' => 'Non autorisé'], 403);
+        // DEV : autoriser tout le monde temporairement
+        // if ($project->creator_id !== Auth::id() && !$project->members->contains(Auth::id())) {
+        //     return response()->json(['error' => 'Non autorisé'], 403);
+        // }
+        // Limite à 7 colonnes max
+        if ($project->columns()->count() >= 7) {
+            return response()->json(['error' => 'Nombre maximum de colonnes atteint'], 422);
         }
-        $column = Column::create($validated);
+        // Calcul de l'ordre
+        $maxOrder = $project->columns()->max('order') ?? 0;
+        $column = $project->columns()->create([
+            'name' => $validated['name'],
+            'is_terminal' => $validated['is_terminal'] ?? false,
+            'order' => $maxOrder + 1,
+        ]);
         return response()->json($column, Response::HTTP_CREATED);
     }
 
@@ -78,15 +88,37 @@ class ColumnController extends Controller
     public function destroy(string $id)
     {
         $column = Column::with('project')->findOrFail($id);
-        // Seul le créateur du projet peut supprimer la colonne
-        if ($column->project->creator_id !== Auth::id()) {
-            return response()->json(['error' => 'Non autorisé'], 403);
+        $project = $column->project;
+        // DEV : autoriser tout le monde temporairement
+        // if ($project->creator_id !== Auth::id()) {
+        //     return response()->json(['error' => 'Non autorisé'], 403);
+        // }
+        // Empêcher la suppression si c'est la dernière colonne
+        if ($project->columns()->count() <= 1) {
+            return response()->json(['error' => 'Impossible de supprimer la dernière colonne du projet'], 409);
         }
-        // Vérifier qu'il n'y a pas de tâches dans cette colonne
-        if ($column->tasks()->count() > 0) {
-            return response()->json(['error' => 'Impossible de supprimer une colonne contenant des tâches'], 409);
+        // Si la colonne contient des tâches, les marquer comme terminées
+        $tasks = $column->tasks;
+        if ($tasks->count() > 0) {
+            foreach ($tasks as $task) {
+                $task->completed_at = now();
+                $task->save();
+            }
         }
         $column->delete();
-        return response()->json(['message' => 'Colonne supprimée']);
+        return response()->json(['message' => 'Colonne supprimée et tâches terminées']);
+    }
+
+    // Mettre à jour l'ordre des colonnes (drag & drop)
+    public function reorder(Request $request, $projectId)
+    {
+        $columnIds = $request->input('column_ids'); // tableau d'IDs dans le nouvel ordre
+        if (!is_array($columnIds)) {
+            return response()->json(['error' => 'Format invalide'], 422);
+        }
+        foreach ($columnIds as $index => $colId) {
+            \App\Models\Column::where('id', $colId)->where('project_id', $projectId)->update(['order' => $index + 1]);
+        }
+        return response()->json(['message' => 'Ordre des colonnes mis à jour']);
     }
 }

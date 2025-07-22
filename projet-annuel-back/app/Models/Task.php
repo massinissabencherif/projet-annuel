@@ -48,4 +48,9 @@ class Task extends Model
     {
         return $this->belongsToMany(User::class, 'task_user');
     }
+
+    public function labels()
+    {
+        return $this->belongsToMany(Label::class, 'label_task');
+    }
 }

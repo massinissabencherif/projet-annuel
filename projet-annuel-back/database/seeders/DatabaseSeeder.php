@@ -22,5 +22,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call(DemoDataSeeder::class);
         $this->call(\Database\Seeders\ProjectWithTasksSeeder::class);
+        $this->call(LabelSeeder::class);
     }
 }

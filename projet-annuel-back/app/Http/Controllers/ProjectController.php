@@ -119,7 +119,7 @@ class ProjectController extends Controller
 
         $columns = $project->columns()->with(['tasks' => function ($query) {
             $query->with('users');
-        }])->get();
+        }])->orderBy('order')->get();
 
         return response()->json($columns);
     }
@@ -135,7 +135,7 @@ class ProjectController extends Controller
             abort(403, 'Accès non autorisé');
         }
 
-        $tasks = $project->tasks()->with(['users', 'column'])->get();
+        $tasks = $project->tasks()->with(['users', 'column', 'labels'])->get();
 
         return response()->json($tasks);
     }

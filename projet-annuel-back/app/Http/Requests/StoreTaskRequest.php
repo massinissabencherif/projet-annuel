@@ -32,6 +32,8 @@ class StoreTaskRequest extends FormRequest
             'completed_at' => 'nullable|date',
             'user_ids' => 'array',
             'user_ids.*' => 'exists:users,id',
+            'label_ids' => 'array',
+            'label_ids.*' => 'exists:labels,id',
         ];
     }
 

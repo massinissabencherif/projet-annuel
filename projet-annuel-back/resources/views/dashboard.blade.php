@@ -74,6 +74,14 @@
             border-radius: 8px;
         }
         
+        /* Liseré bleu pour les labels sélectionnés */
+        .label-badge.ring-2.ring-blue-500 {
+            box-shadow: 0 0 0 2px #3b82f6 !important;
+            border-color: #3b82f6 !important;
+        }
+        .label-badge.opacity-60 {
+            opacity: 0.6 !important;
+        }
 
     </style>
 

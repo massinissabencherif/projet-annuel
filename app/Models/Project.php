@@ -20,7 +20,7 @@ class Project extends Model
             $defaultColumns = [
                 ['name' => 'À faire', 'is_terminal' => false, 'order' => 1],
                 ['name' => 'En cours', 'is_terminal' => false, 'order' => 2],
-                ['name' => 'Terminé', 'is_terminal' => true, 'order' => 3],
+                ['name' => 'Fait', 'is_terminal' => true, 'order' => 3],
                 ['name' => 'Annulé', 'is_terminal' => false, 'order' => 4],
             ];
 
@@ -49,9 +49,4 @@ class Project extends Model
     {
         return $this->belongsToMany(User::class, 'project_user');
     }
-
-    public function users()
-    {
-        return $this->belongsToMany(User::class, 'project_user');
-    }
-}
+} 

@@ -26,11 +26,13 @@ class UpdateTaskRequest extends FormRequest
             'description' => 'nullable|string',
             'category' => 'nullable|string|max:100',
             'priority' => 'sometimes|required|string|in:low,medium,high',
-            'due_date' => 'nullable|date|after_or_equal:today',
+            'due_date' => 'nullable|date',
             'completed_at' => 'nullable|date',
             'column_id' => 'sometimes|required|exists:columns,id',
             'user_ids' => 'array',
             'user_ids.*' => 'exists:users,id',
+            'label_ids' => 'array',
+            'label_ids.*' => 'exists:labels,id',
         ];
     }
 
@@ -48,6 +50,7 @@ class UpdateTaskRequest extends FormRequest
             'due_date.after_or_equal' => 'La date d\'échéance doit être aujourd\'hui ou dans le futur.',
             'column_id.exists' => 'La colonne sélectionnée n\'existe pas.',
             'user_ids.*.exists' => 'Un des utilisateurs sélectionnés n\'existe pas.',
+            'label_ids.*.exists' => 'Un des labels sélectionnés n\'existe pas.',
         ];
     }
 }

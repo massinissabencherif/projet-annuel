@@ -6,6 +6,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\ProjectMemberController;
+use App\Http\Controllers\ColumnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,4 +42,19 @@ Route::patch('tasks/{task}/move', [TaskController::class, 'move']);
 // Routes pour la gestion des membres de projet
 Route::get('/projects/{project}/members', [ProjectMemberController::class, 'index']);
 Route::post('/projects/{project}/invite', [ProjectMemberController::class, 'invite']);
-Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'remove']); 
+Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'remove']);
+
+// Routes des colonnes
+Route::apiResource('columns', ColumnController::class);
+// Route pour mettre à jour l'ordre des colonnes
+Route::post('/projects/{project}/columns/reorder', [App\Http\Controllers\ColumnController::class, 'reorder']);
+
+Route::get('labels', function () {
+    return \App\Models\Label::all()->map(function($label) {
+        return [
+            'id' => $label->id,
+            'name' => $label->name,
+            'color' => \App\Models\Label::colorFor($label->name),
+        ];
+    });
+}); 

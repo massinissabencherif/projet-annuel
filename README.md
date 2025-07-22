@@ -70,15 +70,15 @@ docker-compose up --build
 ## 10. Commandes utiles
 - Lancer les tests :
   ```bash
-  php artisan test
+  ./vendor/bin/sail artisan test
   ```
 - Rafraîchir la base de données :
   ```bash
-  php artisan migrate:fresh --seed
+  ./vendor/bin/sail artisan migrate:fresh --seed
   ```
 - Accéder à Tinker (console Eloquent) :
   ```bash
-  php artisan tinker
+  ./vendor/bin/sail artisan tinker
   ```
 
 ## 11. Problèmes courants

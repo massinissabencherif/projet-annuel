@@ -1,0 +1,170 @@
+#!/bin/bash
+set -e
+
+# Toujours travailler dans /var/www
+cd /var/www
+echo "[INFO] Working directory: /var/www"
+
+# Installer les dépendances PHP si vendor n'existe pas
+if [ ! -d "vendor" ]; then
+    echo "[DEBUG] Installation des dépendances PHP avec Composer..."
+    composer install || { echo "[ERREUR] Composer a échoué !"; exit 1; }
+fi
+
+# Installer les dépendances JS à chaque démarrage (plus sûr)
+npm install
+
+# Mapper les variables Railway vers Laravel (sur Railway seulement)
+if [ "$RAILWAY_ENVIRONMENT" = "production" ] || [ -n "$PORT" ]; then
+    echo "[INFO] Configuration Railway MySQL..."
+    if [ -n "$MYSQL_URL" ]; then
+        echo "[INFO] Parsing MYSQL_URL: $MYSQL_URL"
+        DB_USERNAME=$(echo "$MYSQL_URL" | sed -n 's|mysql://\([^:]*\):.*|\1|p')
+        DB_PASSWORD=$(echo "$MYSQL_URL" | sed -n 's|mysql://[^:]*:\([^@]*\)@.*|\1|p')
+        DB_HOST=$(echo "$MYSQL_URL" | sed -n 's|mysql://[^@]*@\([^:]*\):.*|\1|p')
+        DB_PORT=$(echo "$MYSQL_URL" | sed -n 's|mysql://[^@]*@[^:]*:\([0-9]*\)/.*|\1|p')
+        DB_DATABASE=$(echo "$MYSQL_URL" | sed -n 's|mysql://[^/]*/\(.*\)|\1|p')
+        export DB_HOST DB_PORT DB_USERNAME DB_PASSWORD DB_DATABASE
+        echo "[INFO] Variables Laravel from MYSQL_URL:"
+        echo "DB_HOST=$DB_HOST"
+        echo "DB_PORT=$DB_PORT"
+        echo "DB_USERNAME=$DB_USERNAME"
+        echo "DB_DATABASE=$DB_DATABASE"
+    else
+        echo "[WARNING] MYSQL_URL not found, using defaults"
+        export DB_HOST="127.0.0.1"
+        export DB_PORT="3306"
+        export DB_USERNAME="laravel"
+        export DB_PASSWORD="laravel"
+        export DB_DATABASE="kanboard"
+    fi
+fi
+
+# Vérifier l'extension pdo_mysql
+php -m | grep pdo_mysql
+
+# Attendre que MySQL soit disponible
+until php artisan migrate:status >/dev/null 2>&1; do
+    php artisan migrate:status || cat storage/logs/laravel.log
+    echo "[INFO] MySQL pas encore disponible, attente 3s..."
+    sleep 3
+done
+echo "[INFO] MySQL est prêt !"
+
+# Générer la clé Laravel si elle n'existe pas
+if [ "$RAILWAY_ENVIRONMENT" = "production" ] || [ -n "$PORT" ]; then
+    if [ -z "$APP_KEY" ]; then
+        echo "[INFO] Génération APP_KEY stable pour Railway..."
+        STABLE_KEY=$(echo "base64:$(echo -n "$RAILWAY_STATIC_URL$MYSQL_URL" | openssl dgst -sha256 -binary | openssl base64 -A)")
+        export APP_KEY="$STABLE_KEY"
+    fi
+    echo "[INFO] Railway - création .env complet avec toutes les variables"
+    cat > .env << EOF
+APP_KEY=$APP_KEY
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://${RAILWAY_STATIC_URL:-localhost}
+
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+
+APP_MAINTENANCE_DRIVER=file
+# APP_MAINTENANCE_STORE=database
+
+PHP_CLI_SERVER_WORKERS=4
+
+BCRYPT_ROUNDS=12
+
+LOG_CHANNEL=stderr
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=error
+
+DB_CONNECTION=mysql
+DB_HOST=$DB_HOST
+DB_PORT=$DB_PORT
+DB_DATABASE=$DB_DATABASE
+DB_USERNAME=$DB_USERNAME
+DB_PASSWORD=$DB_PASSWORD
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=database
+
+CACHE_STORE=database
+# CACHE_PREFIX=
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=${GMAIL_USERNAME:-test@gmail.com}
+MAIL_PASSWORD=${GMAIL_APP_PASSWORD:-defaultpass}
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=${GMAIL_USERNAME:-test@gmail.com}
+MAIL_FROM_NAME="Kanban App"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+VITE_APP_NAME=Kanban
+
+APP_NAME=Kanban
+WWWUSER=1000
+WWWGROUP=1000
+EOF
+    echo "[DEBUG] .env généré :"
+    cat .env
+else
+    envfile=".env"
+    if [ ! -f "$envfile" ]; then
+        cp .env.example .env
+        echo "[INFO] Fichier .env créé depuis .env.example"
+    fi
+    php artisan key:generate --force
+fi
+
+# Forcer HTTPS pour les assets et URLs sur Railway
+if [ "$RAILWAY_ENVIRONMENT" = "production" ] || [ -n "$PORT" ]; then
+    echo "[INFO] Configuration HTTPS pour Railway..."
+    php artisan config:cache
+fi
+
+# Lancer les migrations automatiquement
+php artisan migrate --force
+
+# Donner les bons droits
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+
+# Compiler les assets avec Vite (et afficher une erreur claire si échec)
+echo "[INFO] Build front avec Vite..."
+if ! npx vite build; then
+    echo "[ERREUR] Le build Vite a échoué. Vérifie tes dépendances front."
+    exit 1
+fi
+
+# Démarrer le bon serveur selon l'environnement
+if [ "$RAILWAY_ENVIRONMENT" = "production" ] || [ -n "$PORT" ]; then
+    echo "[INFO] Starting Laravel development server for Railway..."
+    exec php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+else
+    echo "[INFO] Starting PHP-FPM server for development..."
+    exec php-fpm -F
+fi

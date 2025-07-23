@@ -1,4 +1,4 @@
-# Étape 1 : Installer Node et builder les assets
+# Étape 1 : Build des assets avec Node
 FROM node:20 AS node_builder
 WORKDIR /var/www
 COPY package*.json ./
@@ -25,10 +25,10 @@ COPY --from=composer:2.5 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copie le code source (sauf node_modules)
+# Copie le code source
 COPY . .
 
-# Copie les assets buildés depuis l'étape Node
+# Copie les assets Vite buildés depuis l'étape Node
 COPY --from=node_builder /var/www/public/build ./public/build
 
 # Installe les dépendances PHP

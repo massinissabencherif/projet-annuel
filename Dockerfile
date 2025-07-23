@@ -25,7 +25,7 @@ COPY --from=composer:2.5 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copie le code source
+# Copie le code source Laravel
 COPY . .
 
 # Copie les assets Vite buildés depuis l'étape Node
